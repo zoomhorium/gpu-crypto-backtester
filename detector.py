@@ -4,20 +4,20 @@ import numpy
 from data import get_market_data
 from features import build_and_label
 import numpy as np
+from signals import get_signals
+import cupy as cp
 def learning(truth,features,validation_truth,validation_features):
     
-    print("=== INTO learning ===")
-    print("features (numpy in):", features.shape, "truth:", truth.shape)
+   
     mean = features.mean(axis=0)   # per-column mean (axis=0 → one per feature)
     std  = features.std(axis=0)    # per-column std
-    features = (features - mean) / std
+    features = normalize(features , mean , std)
     validation_features = (validation_features - mean) / std 
     features = torch.FloatTensor(features)
     truth = torch.FloatTensor(truth).unsqueeze(1)
     validation_features = torch.FloatTensor(validation_features)
     validation_truth = torch.FloatTensor(validation_truth).unsqueeze(1)
-    print("features tensor:", features.shape, "truth tensor:", truth.shape)
-    print("val_features tensor:", validation_features.shape, "val_truth tensor:", validation_truth.shape)
+    
     
     model = nn.Sequential(
         nn.Linear(4, 8),   # layer 1: 4 inputs → 8 neurons
@@ -45,14 +45,25 @@ def learning(truth,features,validation_truth,validation_features):
     
     print(f"train loss {loss.item():.4f} (prob {np.exp(-loss.item()):.3f})  |  "
         f"val loss {loss_new.item():.4f} (prob {np.exp(-loss_new.item()):.3f})")
-    return model    
+    return model
+def normalize(features, mean, std):
+    return (features - mean) / std    
 def run_pipeline(start_year,end_year,start_year_validation,end_year_validation):
     train_kandles=get_market_data(start_year,end_year)
     validation_kandles=get_market_data(start_year_validation,end_year_validation)
-    features,truth=build_and_label(train_kandles)
-    print(">>> after build_and_label (train): features", features.shape, "truth", truth.shape)
-    validation_features,validation_truth=build_and_label(validation_kandles)
-    print(">>> after build_and_label (val): features", validation_features.shape, "truth", validation_truth.shape)
+    train_kandles_signals=cp.array(train_kandles.prices_close, dtype=cp.float32)
+    validation_kandles_signals=cp.array(validation_kandles.prices_close, dtype=cp.float32)
+    signals_train_gpu=get_signals(train_kandles_signals,rangeL=range(50,51))
+    signals_validation_gpu=get_signals(validation_kandles_signals,rangeL=range(50,51))
+    sig_idx_train = signals_train_gpu.map_of_signals[int(50)][int(20)]
+    sig_idx_validation = signals_validation_gpu.map_of_signals[int(50)][int(20)]
+    signal_train    =   signals_train_gpu.matrix[sig_idx_train].get()
+    signal_validation   = signals_validation_gpu.matrix[sig_idx_validation].get()
+    
+    features,truth=build_and_label(train_kandles,signal_train)
+    
+    validation_features,validation_truth=build_and_label(validation_kandles,signal_validation)
+    
     model=learning(truth,features,validation_truth,validation_features)
     return model
 if __name__ == "__main__":

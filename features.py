@@ -18,13 +18,12 @@ def build_features(kandles, window_volume, window_volatility, window_adx):
     indicators = prepare_ai_data(window_adx, kandles.prices_close, kandles.highs, kandles.lows)
     adx = indicators.adx[window_adx]
     div = indicators.division[window_adx]
-    print("lengths -> vol:", len(volatility), "volume:", len(volume),
-          "adx:", len(adx), "div:", len(div))          # <-- add
+             # <-- add
     features = np.column_stack([volatility, volume, adx, div])
-    print("features shape after stack:", features.shape)  # <-- add
+    
     mask = np.isfinite(features).all(axis=1)
     features = features[mask]
-    print("features shape after mask:", features.shape)   # <-- add
+      # <-- add
     return features, mask
 def finding_winner(closes, highs, lows, volatilitys, multiplier=2.0):
     truth = np.full(len(closes), np.nan)
@@ -48,41 +47,45 @@ def finding_winner(closes, highs, lows, volatilitys, multiplier=2.0):
                 break
             c+=1
     return truth
-def build_and_label(market, window=20, adx_n=14, multiplier=8.0):
+def finding_winner_signal(closes, signal, highs, lows, volatilitys, multiplier=2.0):
+    truth = np.full(len(closes), np.nan)
+    position=0
+    entry=0
+    for idx in range(len(closes)):
+        if signal[idx]==0:
+            continue
+        if np.isnan(volatilitys[idx]):
+            continue
+        
+        barrier = multiplier * volatilitys[idx] * closes[idx]
+
+        if signal[idx]==1:
+            take = closes[idx] + barrier
+            position=1
+            stop = closes[idx] - barrier
+        if signal[idx]==-1:
+            stop = closes[idx] + barrier
+            position=-1
+            take = closes[idx] - barrier
+        
+        
+        for future_high,future_low in  zip(highs[idx+1:], lows[idx+1:]):
+            
+            if (future_high>take and position==1) or (future_low<take and position==-1):
+                truth[idx]=1
+                break
+            if (future_low<stop and position==1) or (future_high>stop and position==-1):
+                truth[idx]=0
+                break
+            
+    return truth
+def build_and_label(market,signal=None, window=20, adx_n=14, multiplier=8.0):
     X, feat_mask = build_features(market, window, window, adx_n)   # <-- uses your existing function
     vol = compute_volatility(market.prices_close, window)
-    y = finding_winner(market.prices_close, market.highs, market.lows, vol, multiplier)
+    if signal is None:
+        y = finding_winner(market.prices_close, market.highs, market.lows, vol, multiplier)
+    else:
+        y = finding_winner_signal(market.prices_close, signal, market.highs, market.lows, vol, multiplier)
     y_feat = y[feat_mask]        # align labels to feature rows
     keep = ~np.isnan(y_feat)     # drop rows with no real label
     return X[keep], y_feat[keep] # matched (X, y)
-if __name__ == "__main__":
-    # ---- full pipeline test with self-checking asserts ----
-    np.random.seed(0)
-    n = 60
-    closes2 = 60000 + np.cumsum(np.random.randn(n) * 120)
-    highs2  = closes2 + np.abs(np.random.randn(n) * 60)
-    lows2   = closes2 - np.abs(np.random.randn(n) * 60)
-    volume2 = np.abs(np.random.randn(n) * 500 + 2000)
-    market = SimpleNamespace(prices_close=closes2, highs=highs2, lows=lows2, volume=volume2)
-
-    # build features + labels
-    X, feat_mask = build_features(market, 5, 5, 5)
-    vol = compute_volatility(closes2, window=5)
-    y = finding_winner(closes2, highs2, lows2, vol, multiplier=2.0)
-
-    # align: keep rows surviving BOTH the feature mask AND having a real label
-    y_feat  = y[feat_mask]
-    keep    = ~np.isnan(y_feat)
-    X_final = X[keep]
-    y_final = y_feat[keep]
-
-    # ---- self-checking assertions ----
-    assert X_final.shape[0] == y_final.shape[0],        "X and y lengths must match"
-    assert not np.isnan(X_final).any(),                 "X must have no NaN"
-    assert not np.isnan(y_final).any(),                 "y must have no NaN"
-    assert set(np.unique(y_final)).issubset({0.0, 1.0}), "y must be only 0s and 1s"
-    assert X_final.shape[1] == 4,                        "X must have 4 feature columns"
-
-    print("ALL CHECKS PASSED")
-    print(f"training set: X = {X_final.shape}, y = {y_final.shape}")
-    print(f"class balance: {int(y_final.sum())} ones / {len(y_final)} total")

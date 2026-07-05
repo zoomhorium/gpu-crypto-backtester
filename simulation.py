@@ -150,5 +150,5 @@ def run_simulation(prices_cpu,highs_cpu,lows_cpu, adx_cpu, T_sim, best_n, best_l
         )
     if profit + loss > 0:
         print(f"  Winrate: {profit/(profit+loss):.3f}")
-    print(f"  Balance: {balance:.4f}  Trades: {trades}")
+    print(f"  Balance: {balance:.4f}  Trades: {trades} ")
     return balance

@@ -50,7 +50,7 @@ if __name__ == "__main__":
                 best_bar, best_stop, best_take, best_leverage
             )
     print("\n=== VALIDATION RESULTS (2024-2025) ===")
-    pricesClose_val , highs_val,  lows_val , open_times=get_market_data(2024,2026)
+    pricesClose_val , highs_val,  lows_val ,volume, open_times,T=get_market_data(2024,2026)
     pricesClose_val = np.array(pricesClose_val)
     T_val = len(pricesClose_val)
     highs_val = np.array(highs_val, dtype=np.float32)
