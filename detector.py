@@ -12,7 +12,7 @@ def learning(truth,features,validation_truth,validation_features):
     mean = features.mean(axis=0)   # per-column mean (axis=0 → one per feature)
     std  = features.std(axis=0)    # per-column std
     features = normalize(features , mean , std)
-    validation_features = (validation_features - mean) / std 
+    validation_features = normalize(validation_features , mean , std)
     features = torch.FloatTensor(features)
     truth = torch.FloatTensor(truth).unsqueeze(1)
     validation_features = torch.FloatTensor(validation_features)

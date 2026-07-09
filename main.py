@@ -6,8 +6,7 @@ from train import train
 from models import Ranges
 
 
-
-    
+  
 
 if __name__ == "__main__":
     ranges = Ranges(

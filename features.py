@@ -1,9 +1,7 @@
-import numpy as np
-
 import pandas as pd
 from adx import prepare_ai_data
 import numpy as np
-from types import SimpleNamespace
+
 def compute_volatility(closes, window=20):
     returns = (closes[1:] - closes[:-1]) / closes[:-1]
     rolling_std = pd.Series(returns).rolling(window).std().to_numpy()
@@ -18,12 +16,12 @@ def build_features(kandles, window_volume, window_volatility, window_adx):
     indicators = prepare_ai_data(window_adx, kandles.prices_close, kandles.highs, kandles.lows)
     adx = indicators.adx[window_adx]
     div = indicators.division[window_adx]
-             # <-- add
+    
     features = np.column_stack([volatility, volume, adx, div])
     
     mask = np.isfinite(features).all(axis=1)
     features = features[mask]
-      # <-- add
+    
     return features, mask
 def finding_winner(closes, highs, lows, volatilitys, multiplier=2.0):
     truth = np.full(len(closes), np.nan)
@@ -50,7 +48,7 @@ def finding_winner(closes, highs, lows, volatilitys, multiplier=2.0):
 def finding_winner_signal(closes, signal, highs, lows, volatilitys, multiplier=2.0):
     truth = np.full(len(closes), np.nan)
     position=0
-    entry=0
+    
     for idx in range(len(closes)):
         if signal[idx]==0:
             continue
@@ -80,7 +78,7 @@ def finding_winner_signal(closes, signal, highs, lows, volatilitys, multiplier=2
             
     return truth
 def build_and_label(market,signal=None, window=20, adx_n=14, multiplier=8.0):
-    X, feat_mask = build_features(market, window, window, adx_n)   # <-- uses your existing function
+    X, feat_mask = build_features(market, window, window, adx_n)   
     vol = compute_volatility(market.prices_close, window)
     if signal is None:
         y = finding_winner(market.prices_close, market.highs, market.lows, vol, multiplier)
