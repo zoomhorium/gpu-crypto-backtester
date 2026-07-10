@@ -17,7 +17,8 @@
         int* __restrict__ signal_gpu,
         float*  __restrict__ leverages,
         
-        float*  __restrict__ out_balance
+        float*  __restrict__ out_balance,
+        float* __restrict__ out_score
         
     ) {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -37,20 +38,25 @@
         int8_t bar  =  bars[idx];
         float leverage = leverages[idx];
         float new_marge = 0;
-        
+
         float exit_price = 0.0f;
         // per-combo stop/take as float percentages: 5 -> 0.005 = 0.5%
         float stop_div = (float)stop_divs[idx] / 1000.0f;
         float take_div = (float)take_divs[idx] / 1000.0f;
+        float biggest_drawdown = 0.0;
         
+        float drawdown = 0.0;
+        float peak = 100.0;
         
         int8_t trade_count = 0;
         float* my_adx     = adx_matrix + (long long)n_indices[idx] * T;
         int8_t* my_signal  =  signal_matrix+(long long)signal_gpu[idx]*T;
+        out_score[idx] = 0.0f;
         for (int i = 0; i < T; i++) {
             if (balance <= 3.0f || !isfinite(balance)){
                 out_balance[idx] = 0.0f;
                 return;}
+            if (balance > peak) peak = balance;
             float  adx    = (float)my_adx[i];
             int8_t signal  = (adx >= bar) ? my_signal[i] : 0;
 
@@ -77,8 +83,13 @@
                 else if(trail - stop >= low){
                     trade_count=0;
                     exit_price = (trail - stop) * (1 - slippage);
-                    balance  +=  (exit_price-entry) * marge -exit_price * marge*taker_fee;
                     
+                    balance  +=  (exit_price-entry) * marge -exit_price * marge*taker_fee;
+
+                    drawdown=(peak-balance)/peak;
+                    if (drawdown>biggest_drawdown){
+                        biggest_drawdown=drawdown;
+                    }
                     stop      = 0.0f;
                     take      = 0.0f;
                     entry     = 0.0f;
@@ -99,6 +110,12 @@
                 else if(high > trail){
                     trail = high;
                 }
+                
+                drawdown=(peak-(balance-(entry-low)*marge))/peak;
+                if (drawdown>biggest_drawdown){
+                        biggest_drawdown=drawdown;
+                    }
+                
             }
             if (position == -1){
                 
@@ -109,8 +126,12 @@
                 else if(trail + stop <= high){
                     trade_count=0;
                     exit_price = (trail + stop) * (1 + slippage);
-                    balance  +=  (entry-exit_price) * marge -exit_price * marge*taker_fee;
                     
+                    balance  +=  (entry-exit_price) * marge -exit_price * marge*taker_fee;
+                    drawdown=(peak-balance)/peak;
+                    if (drawdown>biggest_drawdown){
+                        biggest_drawdown=drawdown;
+                    }
                     stop      = 0.0f;
                     take      = 0.0f;
                     entry     = 0.0f;
@@ -130,6 +151,13 @@
                 }
                 else if (low < trail){
                     trail=low;
+                }
+                
+                    
+                drawdown=(peak-(balance-(high-entry)*marge))/peak;
+                if (drawdown>biggest_drawdown){
+                        biggest_drawdown=drawdown;
+                    
                 }
             }
             if(position != signal && signal != 0 && position != 0) {
@@ -170,5 +198,6 @@
                 - final_price * marge * taker_fee;
         }
         
-        out_balance[idx] = isfinite(balance) ? balance : 0.0f;;
+        out_balance[idx] = isfinite(balance) ? balance : 0.0f;
+        out_score[idx] = isfinite(balance*(1-biggest_drawdown)) ? balance*(1-biggest_drawdown) : 0.0f;
     }

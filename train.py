@@ -42,6 +42,7 @@ def kernel_loop(start,end,t0,kernel,chunk_size,threshold,variables_fider,params,
         best_params  = [] 
         best_params_list = []
         best_balance = 0.0
+        best_score = 0.0
         
         chunk_start  = 0
         chunk_num    = 0
@@ -58,7 +59,8 @@ def kernel_loop(start,end,t0,kernel,chunk_size,threshold,variables_fider,params,
                 future = executor.submit(take_chunk, gen, chunk_size)
 
                 n_chunk = len(n_indices_gpu)
-                out     = cp.empty(n_chunk, dtype=cp.float32)
+                out_balance     = cp.empty(n_chunk, dtype=cp.float32)
+                out_score  = cp.empty(n_chunk, dtype=cp.float32)
                 blocks  = ((n_chunk + 1023) // 1024,)
 
                 kernel(blocks, (1024,), (
@@ -69,14 +71,18 @@ def kernel_loop(start,end,t0,kernel,chunk_size,threshold,variables_fider,params,
                     gpu_data.adx_matrix,
                     n_indices_gpu, stop_divs_gpu, take_divs_gpu,
                     cp.int32(n_chunk), cp.int32(gpu_data.T),
-                    bars_gpu, signal_idx_gpu, leverages_gpu, out
+                    bars_gpu, signal_idx_gpu, leverages_gpu, out_balance,out_score
                 ))
-                best_val = float(cp.max(out))
+                best_val = float(cp.max(out_balance))
+                best_score_value = float(cp.max(out_score))
+                if np.isfinite(best_score_value) and best_score_value > best_score:
+                    best_score = best_score_value
                 if np.isfinite(best_val) and best_val > best_balance:
                     best_balance = best_val
                 cp.cuda.stream.get_current_stream().synchronize()
-                bidx=cp.where(out > threshold)[0]
-                values   = cp.asnumpy(out[bidx])
+                bidx=cp.where(out_balance > threshold)[0]
+                values   = cp.asnumpy(out_balance[bidx])
+                score   = cp.asnumpy(out_score[bidx])
                 n_vals   = cp.asnumpy(n_indices_gpu[bidx])
                 sig_vals = cp.asnumpy(signal_idx_gpu[bidx])
                 bar_vals = cp.asnumpy(bars_gpu[bidx])
@@ -88,27 +94,29 @@ def kernel_loop(start,end,t0,kernel,chunk_size,threshold,variables_fider,params,
                     long_short = np.array([signals.reverse_map[int(s)] for s in sig_vals], dtype=np.float32)
                     chunk_data = np.column_stack([
                         values,
+                        
                         (n_vals + 2).astype(np.float32),
                         long_short[:, 0],
                         long_short[:, 1],
                         bar_vals.astype(np.float32),
                         stop_vals.astype(np.float32),
                         take_vals.astype(np.float32),
-                        lev_vals.astype(np.float32)
+                        lev_vals.astype(np.float32),
+                        score
                     ])
                     best_params_list.append(chunk_data)
 
-                del n_indices_gpu, stop_divs_gpu, take_divs_gpu, leverages_gpu, signal_idx_gpu, bars_gpu, out
+                del n_indices_gpu, stop_divs_gpu, take_divs_gpu, leverages_gpu, signal_idx_gpu, bars_gpu, out_balance,out_score
                 if len(bidx) > 0:
                     del bidx
-                print(f"Chunk {chunk_start:>9} / {num_combos} — best: {best_balance:.2f}  — params: {len(best_params_list)} — {time.time()-t_chunk:.2f}s")
+                print(f"Chunk {chunk_start:>9} / {num_combos} — best balance : {best_balance:.2f} — best score: {best_score:.4f} — params: {len(best_params_list)} — {time.time()-t_chunk:.2f}s")
                 chunk_start += n_chunk
 
                 current_chunk_data = future.result()
                 if current_chunk_data is None:
                     break
         best_params = np.vstack(best_params_list)
-        best_param= max(best_params, key=lambda x: x[0])
+        best_param= max(best_params, key=lambda x: x[8])
         print(f"Survivors: {len(best_params)} — Memory: {best_params.nbytes/1e9:.1f}GB")
         train_data=TrainingOutput(
             market_data=cpu_data,
@@ -120,7 +128,8 @@ def kernel_loop(start,end,t0,kernel,chunk_size,threshold,variables_fider,params,
                     best_stop=best_param[5],
                     best_take=best_param[6],
                     best_leverage=best_param[7],
-                    best_balance=best_param[0]
+                    best_balance=best_param[0],
+                    best_score=best_param[8]
             ),
             survivors=SurvivorsData(
                 survivors=best_params

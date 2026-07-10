@@ -52,6 +52,7 @@ class BestStrategyData:
     best_take: int
     best_leverage: int
     best_balance: float
+    best_score: float
 
 @dataclass
 class SurvivorsData:

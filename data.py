@@ -43,9 +43,9 @@ def combo_generator(mapOfSignals,_,ranges):
                             sig_idx = mapOfSignals[long_window][short_window]
                             for bar in ranges.bar:
                                 yield (n, sig_idx, bar, stop_div, take_div, leverage)
-def filtered_combo_generator(mapOfSignals,best_params):
+def filtered_combo_generator(mapOfSignals,best_params,_):
     for params in best_params:
-        _, n, long_w, short_w, bar, stop, take, lev = params
+        _, n, long_w, short_w, bar, stop, take, lev ,_= params
         sig_idx = mapOfSignals[int(long_w)][int(short_w)]
         yield (int(n), sig_idx, int(bar), int(stop), int(take), int(lev))
 def take_chunk(gen, size):
