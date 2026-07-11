@@ -13,7 +13,7 @@ from signals import get_signals
 from adx import prepare_gpu_data
 from models import BestStrategyData
 from models import SurvivorsData
-from models import TrainingOutput
+from models import TrainingOutput,NoSurvivorsError
 def prepare_data(start,end,t0,ranges):
     data_cpu =get_market_data(start,end)
     print(f"Training data loaded: {time.time()-t0:.1f}s  ({len(data_cpu.prices_close)} candles)")
@@ -115,7 +115,9 @@ def kernel_loop(start,end,t0,kernel,chunk_size,threshold,variables_fider,params,
                 current_chunk_data = future.result()
                 if current_chunk_data is None:
                     break
-        best_params = np.vstack(best_params_list)
+        
+        best_params = stack_survivors(best_params_list,threshold,start,end)
+        
         best_param= max(best_params, key=lambda x: x[8])
         print(f"Survivors: {len(best_params)} — Memory: {best_params.nbytes/1e9:.1f}GB")
         train_data=TrainingOutput(
@@ -166,6 +168,8 @@ def train(ranges):
         
         if os.path.exists("round1_params.npy"):
             round1_params = np.load("round1_params.npy")
+            
+                
             print("Loaded round1 from disk")
         else:
             round1_params = train_data.survivors.survivors
@@ -176,6 +180,7 @@ def train(ranges):
         
         if os.path.exists("round2_params.npy"):
             round2_params = np.load("round2_params.npy")
+            
             print("Loaded round2 from disk")
         else:
             round2_params = train_data.survivors.survivors
@@ -183,3 +188,8 @@ def train(ranges):
         
         np.save("round3_params.npy", train_data.survivors.survivors)
         return train_data
+def stack_survivors(best_params_list, threshold, start, end):
+    if not best_params_list:
+            raise NoSurvivorsError(f"No survivors above balance {threshold} for {start}-{end}")
+    best_params = np.vstack(best_params_list)
+    return best_params

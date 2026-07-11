@@ -3,21 +3,23 @@ from data import get_market_data
 from simulation import run_simulation
 from adx import prepare_gpu_data
 from train import train 
-from models import Ranges
+from models import Ranges,NoSurvivorsError
 
 
   
 
-if __name__ == "__main__":
-    ranges = Ranges(
-        leverage=range(1,10),
-        stop=range(5,105,5),
-        take=range(5,105,5),
-        n=range(2,30),
-        long_window=range(6,300),
-        bar=range(2,30)
-    )
+def pipeline(ranges):
+    # ranges = Ranges(
+    #     leverage=range(1,10),
+    #     stop=range(5,105,5),
+    #     take=range(5,105,5),
+    #     n=range(2,30),
+    #     long_window=range(6,300),
+    #     bar=range(2,30)
+    # )
+    
     train_data = train(ranges)
+    
     
         # ── Run validation simulation for top 100 params ──────────────────
     print("\n=== VALIDATION RESULTS (2018-2024) ===")
@@ -80,3 +82,4 @@ if __name__ == "__main__":
                 best_n, best_long, best_short,
                 best_bar, best_stop, best_take, best_leverage
             )
+    return best_params

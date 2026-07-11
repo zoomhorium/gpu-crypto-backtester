@@ -41,6 +41,8 @@ class Signals:
     map_of_signals: dict
 
 
+class NoSurvivorsError(Exception):
+    pass
 
 @dataclass
 class BestStrategyData:

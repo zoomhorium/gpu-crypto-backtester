@@ -1,8 +1,8 @@
 import sys
-
+from main import pipeline
 from PyQt6.QtCore import QSize, Qt
 from PyQt6.QtWidgets import QApplication, QMessageBox, QMainWindow, QPushButton,QDialog, QLineEdit,QLabel,QWidget,QVBoxLayout,QHBoxLayout,QComboBox
-
+from models import Ranges,NoSurvivorsError
 
 # Subclass QMainWindow to customize your application's main window
 class MainWindow(QMainWindow):
@@ -29,9 +29,9 @@ class ChoiseWindow(QWidget):
         self.submit_window = submit_window
         layout = QVBoxLayout()
         self.strategy=QComboBox()
-        self.strategy.addItems(["SMA","Order Block","Horizonal Volume"])
+        self.strategy.addItems(["SMA","Order Block","Horizontal Volume"])
         self.ai=QComboBox()
-        self.ai.addItems(["Volatility","Derection"])
+        self.ai.addItems(["Volatility","Direction"])
         layout.addWidget(self.strategy)
         layout.addWidget(self.ai)
         self.setLayout(layout)
@@ -75,43 +75,124 @@ class SMAWindow (QWidget):
         super().__init__()
         self.setWindowTitle("SMA")
             
-        self.adx_lable = QLabel("ADX=")
-        self.adx_range = QLineEdit()
-        self.adx_range.setPlaceholderText("ENTER ADX RANGE WITH COMA IN BETWEAN")
-            
-        layout_adx=QHBoxLayout()
-        layout_adx.addWidget(self.adx_lable)
-        layout_adx.addWidget(self.adx_range)
-        self.setLayout(layout_adx)
-    def get_values(self):
-        splited_text=self.adx_range.text().split(",")
+        self.bar_label = QLabel("BAR=")
+        self.bar_range = QLineEdit()
+        self.bar_range.setPlaceholderText("ENTER BAR RANGE WITH COMMA IN BETWEEN")
+        
+        self.n_label = QLabel("N=")
+        self.n_range = QLineEdit()
+        self.n_range.setPlaceholderText("ENTER N RANGE WITH COMMA IN BETWEEN")
+        
+        self.leverage_label = QLabel("LEVERAGE=")
+        self.leverage_range = QLineEdit()
+        self.leverage_range.setPlaceholderText("ENTER LEVERAGE RANGE WITH COMMA IN BETWEEN")
+        
+        self.stop_label = QLabel("STOP=")
+        self.stop_range = QLineEdit()
+        self.stop_range.setPlaceholderText("ENTER STOP RANGE WITH COMMA IN BETWEEN (0.5%=5 in this)")
+        
+        self.take_label = QLabel("TAKE=")
+        self.take_range = QLineEdit()
+        self.take_range.setPlaceholderText("ENTER TAKE RANGE WITH COMMA IN BETWEEN (0.5%=5 in this)")
+        
+        
+        
+        self.long_window_label = QLabel("LONG WINDOW=")
+        self.long_window_range = QLineEdit()
+        self.long_window_range.setPlaceholderText("ENTER LONG WINDOW RANGE WITH COMMA IN BETWEEN")   
+        layout_sma=QVBoxLayout()
+
+        layout_bar=QHBoxLayout()
+        layout_bar.addWidget(self.bar_label)
+        layout_bar.addWidget(self.bar_range)
+
+        layout_n=QHBoxLayout()
+        layout_n.addWidget(self.n_label)
+        layout_n.addWidget(self.n_range)
+
+        layout_long_window=QHBoxLayout()
+        layout_long_window.addWidget(self.long_window_label)
+        layout_long_window.addWidget(self.long_window_range)
+
+        layout_take=QHBoxLayout()
+        layout_take.addWidget(self.take_label)
+        layout_take.addWidget(self.take_range)
+
+        layout_stop=QHBoxLayout()
+        layout_stop.addWidget(self.stop_label)
+        layout_stop.addWidget(self.stop_range)
+
+        layout_leverage=QHBoxLayout()
+        layout_leverage.addWidget(self.leverage_label)
+        layout_leverage.addWidget(self.leverage_range)
+        
+
+        layout_sma.addLayout(layout_bar)
+        layout_sma.addLayout(layout_n)
+        layout_sma.addLayout(layout_long_window)
+        layout_sma.addLayout(layout_take)
+        layout_sma.addLayout(layout_stop)
+        layout_sma.addLayout(layout_leverage)
+        
+        self.fields = {
+            "BAR": self.bar_range,
+            "N": self.n_range,
+            "LONG_WINDOW": self.long_window_range,
+            "TAKE": self.take_range,
+            "STOP": self.stop_range,
+            "LEVERAGE": self.leverage_range
+            }
+        
+
+        self.setLayout(layout_sma)
+    def get_values(self,edit_line,name):
+        split_text=edit_line.text().split(",")
         try:
-            adx=range(int(splited_text[0]),int(splited_text[1]))
-            return adx
+            if name=="TAKE" or name=="STOP":
+                range_var=range(int(split_text[0]),int(split_text[1]),5)
+            else:
+                range_var=range(int(split_text[0]),int(split_text[1]))
+            return range_var
         except ValueError:
             
-            dlg =QMessageBox.warning(self, "Invalid input", "Expected e.g. 20,40")
             
             
-            return None
+            
+            return 
         except IndexError:
-            dlg =QMessageBox.warning(self, "Invalid input", "Expected e.g. 20,40")
            
-            return None
+           
+            return 
         
         
         
     def submit(self):
-        adx=self.get_values()
-        if adx is None:
+        results={}
+        errors=[]
+        for  name, edit_line in self.fields.items():
+            result=self.get_values(edit_line,name)
+            if result is None:
+                errors.append(name)
+            else:
+                results[name]=result
+            
+
+            
+        if errors :
+            QMessageBox.warning(self, f"Invalid input in {', '.join(errors)}", "Expected e.g. 20,40")
             return
-        print(adx)
+        else:
+            print(results)
+            try:
+                best_params=pipeline(Ranges(leverage=results["LEVERAGE"],stop=results["STOP"],take=results["TAKE"],n=results["N"],bar=results["BAR"],long_window=results["LONG_WINDOW"]))
+            except NoSurvivorsError as e:
+                QMessageBox.warning(self, "No survivors", str(e))
     
 class OrderBlockWindow(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("WAIT")
-        self.text=QLabel("Under constraction...")
+        self.text=QLabel("Under construction...")
         self.ob_layout=QHBoxLayout()
         self.ob_layout.addWidget(self.text)
         self.setLayout(self.ob_layout)

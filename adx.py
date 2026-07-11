@@ -54,7 +54,7 @@ def prepare_gpu_data(range_n,pricesClose,highs,lows):
 
     adx_matrix = cp.array(np.stack([adx[n] for n in range_n], axis=0), dtype=cp.float32)
     T = len(pricesClose_gpu)
-    return DataForKernelGPU(prices=pricesClose_gpu,highs=highs_gpu,lows=lows_gpu,adx_matrix=adx_matrix,T=T  ),IndicatorData(adx=adx)
+    return DataForKernelGPU(prices=pricesClose_gpu,highs=highs_gpu,lows=lows_gpu,adx_matrix=adx_matrix,T=T  ),IndicatorData(adx=adx,division=None)
 def prepare_ai_data(window,pricesClose,highs,lows):
     pricesClose_gpu = cp.array(pricesClose, dtype=cp.float32)
     highs_gpu  = cp.array(highs,  dtype=cp.float32)
