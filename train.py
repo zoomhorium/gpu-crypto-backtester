@@ -140,7 +140,7 @@ def kernel_loop(start,end,t0,kernel,chunk_size,threshold,variables_fider,params,
             ,
             signals=signals) 
         print("\n=== BEST RESULT (TRAINING 2021-2023) ===")
-        print(f"Balance: {best_balance:.2f}")
+        print(f"Balance: {train_data.best_strategy.best_balance:.2f}")
         print(f"Long Window: {train_data.best_strategy.best_long}, Short Window: {train_data.best_strategy.best_short}")
         print(f"N: {train_data.best_strategy.best_n}, Bar: {train_data.best_strategy.best_bar}")
         print(f"Stop: {train_data.best_strategy.best_stop/10:.1f}%, Take: {train_data.best_strategy.best_take/10:.1f}%, Leverage: {train_data.best_strategy.best_leverage}x")
@@ -166,24 +166,20 @@ def train(ranges):
 
 # at start of round 2, load if exists
         
-        if os.path.exists("round1_params.npy"):
-            round1_params = np.load("round1_params.npy")
+        
+        round1_params = np.load("round1_params.npy")
             
                 
-            print("Loaded round1 from disk")
-        else:
-            round1_params = train_data.survivors.survivors
+        
         train_data=kernel_loop(2020,2022,t0,kernel,1750000,170,filtered_combo_generator, round1_params,ranges)
         
         np.save("round2_params.npy", train_data.survivors.survivors)
         
         
-        if os.path.exists("round2_params.npy"):
-            round2_params = np.load("round2_params.npy")
+       
+        round2_params = np.load("round2_params.npy")
             
-            print("Loaded round2 from disk")
-        else:
-            round2_params = train_data.survivors.survivors
+       
         train_data=kernel_loop(2022,2024,t0,kernel,1750000,170,filtered_combo_generator, round2_params,ranges)
         
         np.save("round3_params.npy", train_data.survivors.survivors)
