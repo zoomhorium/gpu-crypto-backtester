@@ -3,7 +3,7 @@ from main import pipeline
 from PyQt6.QtCore import QSize, Qt
 from PyQt6.QtWidgets import QApplication, QMessageBox, QMainWindow, QPushButton,QDialog, QLineEdit,QLabel,QWidget,QVBoxLayout,QHBoxLayout,QComboBox
 from models import Ranges,NoSurvivorsError
-
+from PyQt6.QtCore import QThread, pyqtSignal
 # Subclass QMainWindow to customize your application's main window
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -40,8 +40,8 @@ class SubmitWindow(QWidget):
     def __init__(self):
         super().__init__()
         
-        button = QPushButton("SUBMIT")
-        button.clicked.connect(self.submit_the_data)
+        self.button = QPushButton("SUBMIT")
+        self.button.clicked.connect(self.submit_the_data)
         layout = QHBoxLayout()
         
         self.sma_window=SMAWindow()
@@ -50,10 +50,11 @@ class SubmitWindow(QWidget):
         self.active_form=self.sma_window
         layout.addWidget(self.sma_window)
         layout.addWidget(self.order_block_window)
-        layout.addWidget(button)
+        layout.addWidget(self.button)
         self.setLayout(layout)
     def submit_the_data(self):
-        self.active_form.submit()
+        
+        self.active_form.submit(self.button)
         
     
         
@@ -77,29 +78,29 @@ class SMAWindow (QWidget):
             
         self.bar_label = QLabel("BAR=")
         self.bar_range = QLineEdit()
-        self.bar_range.setPlaceholderText("ENTER BAR RANGE WITH COMMA IN BETWEEN")
+        self.bar_range.setPlaceholderText("e.g. 20,40 or 20,40,5")
         
         self.n_label = QLabel("N=")
         self.n_range = QLineEdit()
-        self.n_range.setPlaceholderText("ENTER N RANGE WITH COMMA IN BETWEEN")
+        self.n_range.setPlaceholderText("e.g. 20,40 or 20,40,5")
         
         self.leverage_label = QLabel("LEVERAGE=")
         self.leverage_range = QLineEdit()
-        self.leverage_range.setPlaceholderText("ENTER LEVERAGE RANGE WITH COMMA IN BETWEEN")
+        self.leverage_range.setPlaceholderText("e.g. 20,40 or 20,40,5")
         
         self.stop_label = QLabel("STOP=")
         self.stop_range = QLineEdit()
-        self.stop_range.setPlaceholderText("ENTER STOP RANGE WITH COMMA IN BETWEEN (0.5%=5 in this)")
+        self.stop_range.setPlaceholderText("e.g. 20,40 or 20,40,5(0.5%=5 in this)")
         
         self.take_label = QLabel("TAKE=")
         self.take_range = QLineEdit()
-        self.take_range.setPlaceholderText("ENTER TAKE RANGE WITH COMMA IN BETWEEN (0.5%=5 in this)")
+        self.take_range.setPlaceholderText("e.g. 20,40 or 20,40,5 (0.5%=5 in this)")
         
         
         
         self.long_window_label = QLabel("LONG WINDOW=")
         self.long_window_range = QLineEdit()
-        self.long_window_range.setPlaceholderText("ENTER LONG WINDOW RANGE WITH COMMA IN BETWEEN")   
+        self.long_window_range.setPlaceholderText("e.g. 20,40 or 20,40,5")   
         layout_sma=QVBoxLayout()
 
         layout_bar=QHBoxLayout()
@@ -145,32 +146,38 @@ class SMAWindow (QWidget):
         
 
         self.setLayout(layout_sma)
-    def get_values(self,edit_line,name):
+    def get_values(self,edit_line):
         split_text=edit_line.text().split(",")
+
         try:
-            if name=="TAKE" or name=="STOP":
-                range_var=range(int(split_text[0]),int(split_text[1]),5)
-            else:
+            if len(split_text)==3:
+                range_var=range(int(split_text[0]),int(split_text[1]),int(split_text[2]))
+                return range_var
+            if len(split_text)==2:
                 range_var=range(int(split_text[0]),int(split_text[1]))
-            return range_var
+                return range_var
+            else:
+                return None
+            
         except ValueError:
             
             
             
             
-            return 
+            return None
         except IndexError:
            
            
-            return 
+            return None
         
         
         
-    def submit(self):
+    def submit(self,button):
+        self.submit_button = button
         results={}
         errors=[]
         for  name, edit_line in self.fields.items():
-            result=self.get_values(edit_line,name)
+            result=self.get_values(edit_line)
             if result is None:
                 errors.append(name)
             else:
@@ -179,14 +186,25 @@ class SMAWindow (QWidget):
 
             
         if errors :
-            QMessageBox.warning(self, f"Invalid input in {', '.join(errors)}", "Expected e.g. 20,40")
+            QMessageBox.warning(self, "Invalid input",
+                f"Invalid input in: {', '.join(errors)}\nExpected e.g. 20,40 or 20,40,5")
             return
         else:
+            self.pipeline_thread = PipelineThread(results)
+            self.pipeline_thread.finished_ok.connect(self.on_pipeline_done)
+            self.pipeline_thread.failed.connect(self.on_pipeline_failed)
+            self.submit_button.setEnabled(False)
+            self.pipeline_thread.start()
             print(results)
-            try:
-                best_params=pipeline(Ranges(leverage=results["LEVERAGE"],stop=results["STOP"],take=results["TAKE"],n=results["N"],bar=results["BAR"],long_window=results["LONG_WINDOW"]))
-            except NoSurvivorsError as e:
-                QMessageBox.warning(self, "No survivors", str(e))
+    def on_pipeline_done(self, best_params):
+        self.submit_button.setEnabled(True)
+        print("ALL WENT WELL")
+
+    def on_pipeline_failed(self, message):
+        self.submit_button.setEnabled(True)
+        QMessageBox.warning(self, "No survivors",
+                f" {message}")
+            
     
 class OrderBlockWindow(QWidget):
     def __init__(self):
@@ -200,10 +218,30 @@ class OrderBlockWindow(QWidget):
             
             adx=67
             return adx
-    def submit(self):
+    def submit(self,button):
         adx=self.get_values()
         print(adx)
 
+
+class PipelineThread(QThread):
+    finished_ok = pyqtSignal(object)   # custom signals: CLASS attributes,
+    failed      = pyqtSignal(str)      # typed by payload
+
+    def __init__(self, ranges):
+        super().__init__()
+        self.results = ranges
+
+    def run(self):
+        try:
+            best_params=pipeline(Ranges(leverage=self.results["LEVERAGE"],stop=self.results["STOP"],take=self.results["TAKE"],n=self.results["N"],bar=self.results["BAR"],long_window=self.results["LONG_WINDOW"]))
+            
+            self.finished_ok.emit(best_params)
+
+            
+        except NoSurvivorsError as e:
+            
+            self.failed.emit( str(e)) 
+            
 
 app = QApplication(sys.argv)
 
