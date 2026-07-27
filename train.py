@@ -25,7 +25,7 @@ def prepare_data(start,end,t0,ranges):
     
 
     return data_cpu,data_gpu,signals,adx
-def kernel_loop(start,end,t0,kernel,chunk_size,threshold,variables_fider,params,ranges):
+def kernel_loop(start,end,t0,kernel,chunk_size,threshold,variables_fider,params,ranges,progress_callback=None):
         
 
         startof = time.time()
@@ -35,6 +35,8 @@ def kernel_loop(start,end,t0,kernel,chunk_size,threshold,variables_fider,params,
         # # ── Kernel ────────────────────────────────────────────────────────
         num_combos = len(params) if params is not None else count_combos(ranges)
         print(f"Total combinations: {num_combos}")
+        if progress_callback:
+                    progress_callback(0)
         
 
         
@@ -73,6 +75,7 @@ def kernel_loop(start,end,t0,kernel,chunk_size,threshold,variables_fider,params,
                     cp.int32(n_chunk), cp.int32(gpu_data.T),
                     bars_gpu, signal_idx_gpu, leverages_gpu, out_balance,out_score
                 ))
+                
                 best_val = float(cp.max(out_balance))
                 best_score_value = float(cp.max(out_score))
                 if np.isfinite(best_score_value) and best_score_value > best_score:
@@ -111,7 +114,8 @@ def kernel_loop(start,end,t0,kernel,chunk_size,threshold,variables_fider,params,
                     del bidx
                 print(f"Chunk {chunk_start:>9} / {num_combos} — best balance : {best_balance:.2f} — best score: {best_score:.4f} — params: {len(best_params_list)} — {time.time()-t_chunk:.2f}s")
                 chunk_start += n_chunk
-
+                if progress_callback:
+                    progress_callback(int(chunk_start/ num_combos*10000))
                 current_chunk_data = future.result()
                 if current_chunk_data is None:
                     break
@@ -147,7 +151,7 @@ def kernel_loop(start,end,t0,kernel,chunk_size,threshold,variables_fider,params,
         print(f"Total time: {time.time()-startof:.1f}s")
         print (sum(len(c) for c in best_params_list))
         return train_data
-def train(ranges):
+def train(ranges,progress_callback=None):
         
         dir = os.path.dirname(os.path.abspath(__file__))
         cuda_path = r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v13.2\bin"
@@ -161,26 +165,24 @@ def train(ranges):
         kernel = module.get_function("backtest_kernel")
         # ── Load TRAINING data 2021-2023 ─────────────────────────────────
         t0 = time.time()
-        train_data=kernel_loop(2018,2020,t0,kernel,1750000,170,combo_generator,None,ranges)
+        train_data=kernel_loop(2018,2020,t0,kernel,1750000,170,combo_generator,None,ranges,progress_callback)
         np.save("round1_params.npy", train_data.survivors.survivors)
 
-# at start of round 2, load if exists
+
         
         
         round1_params = np.load("round1_params.npy")
             
-                
         
-        train_data=kernel_loop(2020,2022,t0,kernel,1750000,170,filtered_combo_generator, round1_params,ranges)
+        train_data=kernel_loop(2020,2022,t0,kernel,1750000,170,filtered_combo_generator, round1_params,ranges,progress_callback)
         
         np.save("round2_params.npy", train_data.survivors.survivors)
         
         
-       
         round2_params = np.load("round2_params.npy")
             
        
-        train_data=kernel_loop(2022,2024,t0,kernel,1750000,170,filtered_combo_generator, round2_params,ranges)
+        train_data=kernel_loop(2022,2024,t0,kernel,1750000,170,filtered_combo_generator, round2_params,ranges,progress_callback)
         
         np.save("round3_params.npy", train_data.survivors.survivors)
         return train_data

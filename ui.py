@@ -1,7 +1,7 @@
 import sys
 from main import pipeline
 from PyQt6.QtCore import QSize, Qt
-from PyQt6.QtWidgets import QApplication, QMessageBox, QMainWindow, QPushButton,QDialog, QLineEdit,QLabel,QWidget,QVBoxLayout,QHBoxLayout,QComboBox
+from PyQt6.QtWidgets import QApplication, QMessageBox, QMainWindow,QProgressBar, QPushButton,QDialog, QLineEdit,QLabel,QWidget,QVBoxLayout,QHBoxLayout,QComboBox
 from models import Ranges,NoSurvivorsError
 from PyQt6.QtCore import QThread, pyqtSignal
 # Subclass QMainWindow to customize your application's main window
@@ -42,6 +42,7 @@ class SubmitWindow(QWidget):
         
         self.button = QPushButton("SUBMIT")
         self.button.clicked.connect(self.submit_the_data)
+        
         layout = QHBoxLayout()
         
         self.sma_window=SMAWindow()
@@ -51,6 +52,7 @@ class SubmitWindow(QWidget):
         layout.addWidget(self.sma_window)
         layout.addWidget(self.order_block_window)
         layout.addWidget(self.button)
+        
         self.setLayout(layout)
     def submit_the_data(self):
         
@@ -71,9 +73,13 @@ class SubmitWindow(QWidget):
             self.active_form=self.order_block_window
             self.sma_window.hide()
     
+    
 class SMAWindow (QWidget):
     def __init__(self):
         super().__init__()
+        self.progress = QProgressBar()
+        self.progress.setVisible(False)
+        self.progress.setRange(0,10000)
         self.setWindowTitle("SMA")
             
         self.bar_label = QLabel("BAR=")
@@ -134,6 +140,7 @@ class SMAWindow (QWidget):
         layout_sma.addLayout(layout_take)
         layout_sma.addLayout(layout_stop)
         layout_sma.addLayout(layout_leverage)
+        layout_sma.addWidget(self.progress)
         
         self.fields = {
             "BAR": self.bar_range,
@@ -147,6 +154,7 @@ class SMAWindow (QWidget):
 
         self.setLayout(layout_sma)
     def get_values(self,edit_line):
+
         split_text=edit_line.text().split(",")
 
         try:
@@ -173,6 +181,7 @@ class SMAWindow (QWidget):
         
         
     def submit(self,button):
+        
         self.submit_button = button
         results={}
         errors=[]
@@ -183,7 +192,7 @@ class SMAWindow (QWidget):
             else:
                 results[name]=result
             
-
+    
             
         if errors :
             QMessageBox.warning(self, "Invalid input",
@@ -193,15 +202,24 @@ class SMAWindow (QWidget):
             self.pipeline_thread = PipelineThread(results)
             self.pipeline_thread.finished_ok.connect(self.on_pipeline_done)
             self.pipeline_thread.failed.connect(self.on_pipeline_failed)
+            self.pipeline_thread.progress.connect(self.on_progress)
             self.submit_button.setEnabled(False)
+            self.progress.setVisible(True)
+            self.progress.setValue(10000)
             self.pipeline_thread.start()
             print(results)
+            
+    def on_progress(self,percent):
+        self.progress.setValue(percent)
+
     def on_pipeline_done(self, best_params):
         self.submit_button.setEnabled(True)
+        self.progress.setVisible(False)
         print("ALL WENT WELL")
 
     def on_pipeline_failed(self, message):
         self.submit_button.setEnabled(True)
+        self.progress.setVisible(False)
         QMessageBox.warning(self, "No survivors",
                 f" {message}")
             
@@ -226,6 +244,7 @@ class OrderBlockWindow(QWidget):
 class PipelineThread(QThread):
     finished_ok = pyqtSignal(object)   # custom signals: CLASS attributes,
     failed      = pyqtSignal(str)      # typed by payload
+    progress = pyqtSignal(int)
 
     def __init__(self, ranges):
         super().__init__()
@@ -233,7 +252,7 @@ class PipelineThread(QThread):
 
     def run(self):
         try:
-            best_params=pipeline(Ranges(leverage=self.results["LEVERAGE"],stop=self.results["STOP"],take=self.results["TAKE"],n=self.results["N"],bar=self.results["BAR"],long_window=self.results["LONG_WINDOW"]))
+            best_params=pipeline(Ranges(leverage=self.results["LEVERAGE"],stop=self.results["STOP"],take=self.results["TAKE"],n=self.results["N"],bar=self.results["BAR"],long_window=self.results["LONG_WINDOW"]),progress_callback=self.progress.emit)
             
             self.finished_ok.emit(best_params)
 
