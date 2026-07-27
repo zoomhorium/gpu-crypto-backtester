@@ -6,19 +6,11 @@ from train import train
 from models import Ranges,NoSurvivorsError
 
 
-  
 
-def pipeline(ranges):
-    # ranges = Ranges(
-    #     leverage=range(1,10),
-    #     stop=range(5,105,5),
-    #     take=range(5,105,5),
-    #     n=range(2,30),
-    #     long_window=range(6,300),
-    #     bar=range(2,30)
-    # )
+def pipeline(ranges,progress_callback=None):
+
     
-    train_data = train(ranges)
+    train_data = train(ranges,progress_callback)
     
     
         # ── Run validation simulation for top 100 params ──────────────────
@@ -51,11 +43,11 @@ def pipeline(ranges):
                 best_bar, best_stop, best_take, best_leverage
             )
     print("\n=== VALIDATION RESULTS (2024-2025) ===")
-    pricesClose_val , highs_val,  lows_val ,volume, open_times,T=get_market_data(2024,2026)
-    pricesClose_val = np.array(pricesClose_val)
+    market_data=get_market_data(2024,2026)
+    pricesClose_val = np.array(market_data.prices_close)
     T_val = len(pricesClose_val)
-    highs_val = np.array(highs_val, dtype=np.float32)
-    lows_val = np.array(lows_val, dtype=np.float32)
+    highs_val = np.array(market_data.highs, dtype=np.float32)
+    lows_val = np.array(market_data.lows, dtype=np.float32)
     print(f"Validation candles: {T_val}")
 
     best_params_sorted = sorted(
@@ -63,7 +55,7 @@ def pipeline(ranges):
         key=lambda x:x[0],
         reverse=True
     )
-    adx_matrix,pricesClose_gpu,highs_gpu,lows_gpu,adx=prepare_gpu_data(ranges.n,pricesClose_val,highs_val,  lows_val)
+    gpu_data,indicator=prepare_gpu_data(ranges.n,pricesClose_val,highs_val,  lows_val)
     for rank, best_param in enumerate(best_params_sorted):
             
             best_n        = int(best_param[1])
@@ -78,8 +70,20 @@ def pipeline(ranges):
                 continue
             print(f"\nRank {rank+1} — Train balance: {best_balances:.2f} | Params: long={best_long} short={best_short} n={best_n} bar={best_bar} stop={best_stop/10:.1f}% take={best_take/10:.1f}% lev={best_leverage}x")
             run_simulation(
-                pricesClose_val,highs_val,lows_val, adx[best_n], T_val,
-                best_n, best_long, best_short,
-                best_bar, best_stop, best_take, best_leverage
-            )
+                            pricesClose_val,highs_val,lows_val, indicator.adx[best_n], T_val,
+                            best_n, best_long, best_short,
+                            best_bar, best_stop, best_take, best_leverage
+                        )
     return best_params
+if __name__ == "__main__":
+    ranges = Ranges(
+            leverage=range(1,10),
+            stop=range(5,105,5),
+            take=range(5,105,5),
+            n=range(2,30),
+            long_window=range(6,300),
+            bar=range(2,30),
+        ) 
+
+    
+    pipeline(ranges)
