@@ -48,12 +48,13 @@ def prepare_gpu_data(range_n,pricesClose,highs,lows):
         dx       = np.nan_to_num(np.where(di_sum>0, abs(plus_di-minus_di)/di_sum*100, 0.0))
         adx_arr  = np.zeros(L); adx_arr[n-1] = dx[n-1]
         zi_adx   = lfiltic(b, a, [adx_arr[n-1]])
-        adx_arr[n:], _ = lfilter(b, a, dx[n:]/n, zi=zi_adx)
+        adx_arr[n:], _ = lfilter(b, a, dx[n:], zi=zi_adx)
         div[n] = np.divide(plus_di, minus_di, out=np.zeros(L), where=minus_di!=0)
         adx[n]   = np.concatenate([[0.0], adx_arr])
 
     adx_matrix = cp.array(np.stack([adx[n] for n in range_n], axis=0), dtype=cp.float32)
     T = len(pricesClose_gpu)
+    
     return DataForKernelGPU(prices=pricesClose_gpu,highs=highs_gpu,lows=lows_gpu,adx_matrix=adx_matrix,T=T  ),IndicatorData(adx=adx,division=None)
 def prepare_ai_data(window,pricesClose,highs,lows):
     pricesClose_gpu = cp.array(pricesClose, dtype=cp.float32)
@@ -98,7 +99,7 @@ def prepare_ai_data(window,pricesClose,highs,lows):
     dx       = np.nan_to_num(np.where(di_sum>0, abs(plus_di-minus_di)/di_sum*100, 0.0))
     adx_arr  = np.full(L, np.nan); adx_arr[n-1] = dx[n-1]
     zi_adx   = lfiltic(b, a, [adx_arr[n-1]])
-    adx_arr[n:], _ = lfilter(b, a, dx[n:]/n, zi=zi_adx)
+    adx_arr[n:], _ = lfilter(b, a, dx[n:], zi=zi_adx)
     div[n] = np.concatenate([[np.nan], np.divide(plus_di, minus_di, out=np.full(L, np.nan), where=minus_di!=0)])
     adx[n]   = np.concatenate([[np.nan], adx_arr])    
     return IndicatorData(adx=adx,division=div)   

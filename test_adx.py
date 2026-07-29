@@ -18,7 +18,19 @@ def test_prepare_ai_data():
     assert np.isnan(div[0]),         "div warmup must start with NaN"
     # after warmup, values must be finite (not NaN, not inf)
     assert np.isfinite(adx[n:]).all(),  "adx must be finite after warmup"
+def test_adx_perfect_uptrend():
+    n = 14
+    prices = np.arange(100, 300, dtype=np.float32)   # 200 candles, +1 each
+    highs  = prices + 0.5
+    lows   = prices - 0.5
+
+    indicators = prepare_ai_data(n, prices, highs, lows)
+    adx = indicators.adx[n]
+    tail = adx[-50:]        # past the warm-up
+    # your assertions here
+    assert np.allclose(tail,100), "perfect uptrend must give ADX ≈ 100"
 
 if __name__ == "__main__":
     test_prepare_ai_data()
+    test_adx_perfect_uptrend()
     print("ALL TESTS PASSED")
