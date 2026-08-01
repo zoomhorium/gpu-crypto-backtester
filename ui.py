@@ -205,7 +205,7 @@ class SMAWindow (QWidget):
             self.pipeline_thread.progress.connect(self.on_progress)
             self.submit_button.setEnabled(False)
             self.progress.setVisible(True)
-            self.progress.setValue(10000)
+            
             self.pipeline_thread.start()
             print(results)
             

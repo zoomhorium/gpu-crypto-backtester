@@ -27,9 +27,10 @@ def test_adx_perfect_uptrend():
     indicators = prepare_ai_data(n, prices, highs, lows)
     adx = indicators.adx[n]
     tail = adx[-50:]        # past the warm-up
-    # your assertions here
-    assert np.allclose(tail,100), "perfect uptrend must give ADX ≈ 100"
-
+    finite = adx[np.isfinite(adx)]          # drop the NaN warm-up
+    assert np.allclose(tail, 100), "perfect uptrend must give ADX ≈ 100"
+    finite = adx[np.isfinite(adx)]
+    assert finite.min() >= 0 and finite.max() <= 100, "ADX must stay within [0, 100]"
 if __name__ == "__main__":
     test_prepare_ai_data()
     test_adx_perfect_uptrend()

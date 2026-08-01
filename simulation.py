@@ -35,7 +35,7 @@ def run_simulation(prices_cpu,highs_cpu,lows_cpu, adx_cpu, T_sim, best_n, best_l
                 diff = (short_sma > long_sma)
             continue
 
-        if balance <= 1 or not np.isfinite(balance):
+        if balance <= 3 or not np.isfinite(balance):
             print(f"  Balance wiped at candle {i}")
             print(f"  Winrate: {profit/(profit+loss):.3f}" if profit+loss > 0 else "  No trades completed")
             print(f"  Balance: {balance:.4f}  Trades: {trades}")
