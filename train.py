@@ -3,6 +3,7 @@ import cupy as cp
 import numpy as np
 import time
 import os
+from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 from data import get_market_data
 from data import count_combos
@@ -14,6 +15,7 @@ from adx import prepare_gpu_data
 from models import BestStrategyData
 from models import SurvivorsData
 from models import TrainingOutput,NoSurvivorsError
+from saving_survivors import save
 def prepare_data(start,end,t0,ranges):
     data_cpu =get_market_data(start,end)
     print(f"Training data loaded: {time.time()-t0:.1f}s  ({len(data_cpu.prices_close)} candles)")
@@ -152,7 +154,7 @@ def kernel_loop(start,end,t0,kernel,chunk_size,threshold,variables_fider,params,
         print (sum(len(c) for c in best_params_list))
         return train_data
 def train(ranges,progress_callback=None):
-        
+        DATA_DIR = Path(__file__).resolve().parent
         dir = os.path.dirname(os.path.abspath(__file__))
         cuda_path = r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v13.2\bin"
         if os.path.exists(cuda_path):
@@ -166,25 +168,25 @@ def train(ranges,progress_callback=None):
         # ── Load TRAINING data 2021-2023 ─────────────────────────────────
         t0 = time.time()
         train_data=kernel_loop(2018,2020,t0,kernel,1750000,170,combo_generator,None,ranges,progress_callback)
-        np.save("round1_params.npy", train_data.survivors.survivors)
+        save(DATA_DIR / "round1_params.npy", train_data.survivors.survivors,ranges)
 
 
         
         
-        round1_params = np.load("round1_params.npy")
+        round1_params = np.load(DATA_DIR / "round1_params.npy")
             
         
         train_data=kernel_loop(2020,2022,t0,kernel,1750000,170,filtered_combo_generator, round1_params,ranges,progress_callback)
         
-        np.save("round2_params.npy", train_data.survivors.survivors)
+        save(DATA_DIR / "round2_params.npy", train_data.survivors.survivors,ranges)
         
         
-        round2_params = np.load("round2_params.npy")
+        round2_params = np.load(DATA_DIR / "round2_params.npy")
             
        
         train_data=kernel_loop(2022,2024,t0,kernel,1750000,170,filtered_combo_generator, round2_params,ranges,progress_callback)
         
-        np.save("round3_params.npy", train_data.survivors.survivors)
+        save(DATA_DIR / "round3_params.npy", train_data.survivors.survivors,ranges)
         return train_data
 def stack_survivors(best_params_list, threshold, start, end):
     if not best_params_list:
