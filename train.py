@@ -3,7 +3,7 @@ import cupy as cp
 import numpy as np
 import time
 import os
-from pathlib import Path
+from paths import DATA_DIR, BASE_DIR
 from concurrent.futures import ThreadPoolExecutor
 from data import get_market_data
 from data import count_combos
@@ -154,13 +154,13 @@ def kernel_loop(start,end,t0,kernel,chunk_size,threshold,variables_fider,params,
         print (sum(len(c) for c in best_params_list))
         return train_data
 def train(ranges,progress_callback=None):
-        DATA_DIR = Path(__file__).resolve().parent
-        dir = os.path.dirname(os.path.abspath(__file__))
+        
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
         cuda_path = r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v13.2\bin"
         if os.path.exists(cuda_path):
             os.add_dll_directory(cuda_path)
         module = cp.RawModule(
-             code=open(os.path.join(dir, "backtest_kernel.cu")).read(),
+             code=open(BASE_DIR / "backtest_kernel.cu").read(),
              options=("--use_fast_math",),
              name_expressions=["backtest_kernel"]
          )
