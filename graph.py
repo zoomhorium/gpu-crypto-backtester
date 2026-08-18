@@ -9,7 +9,7 @@ cmap_b = matplotlib.colormaps["viridis"].with_extremes(bad="0.6")
 
 a = np.load(DATA_DIR / "round3_params.npy")
 b = np.load(DATA_DIR / "round2_params.npy")
-fig, (ax1, ax2,ax3,ax4) = plt.subplots(4, 1, sharex=True, figsize=(10, 8))
+fig, (ax1, ax2,ax3,ax4) = plt.subplots(4, 1, sharex=True, figsize=(10, 26))
 
 
 ax1.scatter(a[:, 4], a[:, 8], s=2, alpha=0.05, linewidths=0,label="scores")
@@ -23,21 +23,29 @@ for i, n in enumerate(ns):
     for j, bar in enumerate(bars):
         mask = (a[:, 1] == n) & (a[:, 4] == bar)
         counts[i, j] = mask.sum()
-        if counts[i, j]:
+        if counts[i, j]>=100:
             medians[i, j] = np.median(a[mask, 8])
+        else:
+            medians[i, j] = np.nan
+            
+for i, n in enumerate(ns):
+    
+    print(np.nanargmin(medians[i, :]) + 4,counts[i,np.nanargmin(medians[i, :])] , n)
 
 print(np.min(a[:,8]),np.min(a[:,0]))
 print(bars)
 print(ns)
 print(medians.shape, counts.min(), counts.max())
-fig2, (axA, axB) = plt.subplots(1, 2, figsize=(25, 12))
+fig2, (axA, axB) = plt.subplots(1, 2, figsize=(25, 25))
 im_a = axA.imshow(medians, cmap=cmap_a,
                   norm=TwoSlopeNorm(vcenter=100,
                                     vmin=np.nanmin(medians),
                                     vmax=np.nanmax(medians)))
 im_b = axB.imshow(counts,   cmap=cmap_b, norm=LogNorm(vmin=1, vmax=counts.max()))
-axA.invert_xaxis()  
-axB.invert_xaxis()  
+axA.invert_yaxis()  
+axA.set_xlabel("bar")
+axA.set_ylabel("n")
+axB.invert_yaxis()  
 fig2.colorbar(im_a, ax=axA)
 fig2.colorbar(im_b, ax=axB)
 
@@ -56,9 +64,9 @@ ax2.scatter(a[:, 4], (1 - a[:, 8] / a[:, 0])*100, s=2, alpha=0.05, linewidths=0,
 ax1.set_yscale("log")
 ax1.set_xlabel("bar (ADX threshold)")
 ax1.set_ylabel("score")
-ax1.set_xlabel("bar (ADX threshold)")
-ax1.set_ylabel("drawdown")
-ax1.set_title("round3 — bar vs drawdown")
+ax2.set_xlabel("bar (ADX threshold)")
+ax2.set_ylabel("drawdown")
+
 ax1.grid(True, alpha=0.3)
 ax2.grid(True, alpha=0.3)
 ax1.legend( )
@@ -77,17 +85,21 @@ for bar in bars:
 
 ax3.plot(bars,median,marker="o",label="median",color="red")
 hb2 = ax4.hexbin(b[:, 4], (1 - b[:, 8] / b[:, 0])*100,  bins="log",
-                gridsize=(26, 40), cmap="viridis", mincnt=1)
+                gridsize=(26, 16), cmap="viridis", mincnt=1)
 fig.colorbar(hb2, ax=ax4)
 ax3.set_yscale("log")
 ax3.set_xlabel("bar (ADX threshold)")
 ax3.set_ylabel("score")
-ax3.set_xlabel("bar (ADX threshold)")
-ax3.set_ylabel("drawdown")
-ax3.set_title("round2 — bar vs drawdown") 
+ax4.set_xlabel("bar (ADX threshold)")
+ax4.set_ylabel("drawdown")
+
 ax3.grid(True, alpha=0.3)
 ax4.grid(True, alpha=0.3)
 ax3.legend( )
+ax1.set_title("round3 — bar vs score")
+ax2.set_title("round3 — bar vs drawdown")
+ax3.set_title("round2 — bar vs score")
+ax4.set_title("round2 — bar vs drawdown")
 
 fig.tight_layout()
 fig.savefig(BASE_DIR / "bar_vs_score.png", dpi=150)
