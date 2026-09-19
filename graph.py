@@ -29,7 +29,7 @@ def draw_grid_pair(axA, axB, y_values, x_values, medians, counts, y_label, x_lab
                   norm=TwoSlopeNorm(vcenter=100,
                                     vmin=np.nanmin(medians),
                                     vmax=np.nanmax(medians)))
-    im_b = axB.imshow(counts,   cmap=cmap_b, norm=LogNorm(vmin=1, vmax=counts.max()))
+    im_b = axB.imshow(counts,   cmap=cmap_b, norm=LogNorm(vmin=10, vmax=counts.max()))
     axA.invert_yaxis()  
     axA.set_xlabel(x_label)
     axA.set_ylabel(y_label)
@@ -44,7 +44,7 @@ def draw_grid_pair(axA, axB, y_values, x_values, medians, counts, y_label, x_lab
     axB.set_yticks(range(len(y_values)), list(y_values))    
 
 cmap_a = matplotlib.colormaps["RdBu"].with_extremes(bad="0.6")
-cmap_b = matplotlib.colormaps["viridis"].with_extremes(bad="0.6")
+cmap_b = matplotlib.colormaps["viridis"].with_extremes(bad="0.6",under="0.8")
 
 a = np.load(DATA_DIR / "round3_params.npy")
 fig2, (axA, axB) = plt.subplots(1, 2, figsize=(25, 25))
@@ -60,8 +60,6 @@ for i, y in enumerate(y_values):
     j = np.nanargmin(medians[i, :])
     print(x_values[j], counts[i, j], y)
 print(np.min(a[:,8]),np.min(a[:,0]))
-
-
 
 
 
