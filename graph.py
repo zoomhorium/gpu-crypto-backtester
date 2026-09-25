@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 from matplotlib.colors import TwoSlopeNorm
+from matplotlib.patches import Rectangle
 import matplotlib
 def build_grid(data, y_col, x_col, value_col, y_values=None, x_values=None):
 
@@ -16,17 +17,15 @@ def build_grid(data, y_col, x_col, value_col, y_values=None, x_values=None):
         for j, x in enumerate(x_values):
             mask = (data[:, y_col] == y) & (data[:, x_col] == x)
             counts[i, j] = mask.sum()
-            if counts[i, j]>=100:
+            if counts[i, j]:
                 medians[i, j] = np.median(data[mask, value_col])
-            else:
-                medians[i, j] = np.nan
         
 
     return y_values, x_values, medians, counts
 
-def draw_grid_pair(axA, axB, y_values, x_values, medians, counts, y_label, x_label,cmap_a,cmap_b):
+def draw_grid_pair(axA, axB, y_values, x_values, medians, counts, y_label, x_label,cmap_a,cmap_b,vcenter=100, thin_below=100):
     im_a = axA.imshow(medians, cmap=cmap_a,
-                  norm=TwoSlopeNorm(vcenter=100,
+                  norm=TwoSlopeNorm(vcenter=vcenter,
                                     vmin=np.nanmin(medians),
                                     vmax=np.nanmax(medians)))
     im_b = axB.imshow(counts,   cmap=cmap_b, norm=LogNorm(vmin=10, vmax=counts.max()))
@@ -36,6 +35,11 @@ def draw_grid_pair(axA, axB, y_values, x_values, medians, counts, y_label, x_lab
     axB.set_xlabel(x_label)
     axB.set_ylabel(y_label)
     axB.invert_yaxis()  
+    
+    for i, y in enumerate(y_values):
+        for j, x in enumerate(x_values):
+            if  thin_below>counts[i,j]>0: 
+                axA.add_patch(Rectangle((j-0.5, i-0.5), 1, 1, fill=False, ec="k", lw=1.5, hatch="x"))
     axA.figure.colorbar(im_a, ax=axA)
     axB.figure.colorbar(im_b, ax=axB)
     axA.set_xticks(range(len(x_values)), list(x_values))
@@ -55,14 +59,18 @@ draw_grid_pair(axA, axB, y_values, x_values, medians, counts, "n", "bar",cmap_a,
 
 
 
-            
 for i, y in enumerate(y_values):
-    j = np.nanargmin(medians[i, :])
+    row = np.where(counts[i] > 99, medians[i], np.nan)
+    j = np.nanargmin(row)
     print(x_values[j], counts[i, j], y)
 print(np.min(a[:,8]),np.min(a[:,0]))
 
+print(np.nanmin(medians), np.nanmax(medians))
 
+thin = (counts > 0) & (counts < 100)
+print(thin.sum())
 
+ 
 fig2.savefig(BASE_DIR / "bar_n_heatmap.png", dpi=150)
 
 
