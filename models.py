@@ -2,7 +2,16 @@ from dataclasses import dataclass
 import numpy as np
 import cupy as cp
 from typing import Iterable
-
+@dataclass
+class Grid:
+    y_values: range
+    x_values : range 
+    medians: np.ndarray
+    counts :    np.ndarray
+    capped_sum: np.ndarray
+    p10 : np.ndarray
+    p90  : np.ndarray
+    spread: np.ndarray
 @dataclass
 class Ranges:
     leverage: Iterable

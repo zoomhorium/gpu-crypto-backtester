@@ -5,6 +5,8 @@ from matplotlib.colors import LogNorm
 from matplotlib.colors import TwoSlopeNorm
 from matplotlib.patches import Rectangle
 import matplotlib
+from models import Grid
+
 def build_grid(data, y_col, x_col, value_col, y_values=None, x_values=None, lower_limit=100, upper_limit=500):
 
     if y_values is None:
@@ -34,7 +36,7 @@ def build_grid(data, y_col, x_col, value_col, y_values=None, x_values=None, lowe
                 capped_sum[i,j] = np.sum(np.clip(norm_data, 0, 1))
         
 
-    return y_values, x_values, medians, counts , capped_sum ,p10 ,p90 , spread
+    return Grid(y_values=y_values, x_values=x_values, medians=medians, counts=counts , capped_sum=capped_sum ,p10=p10 ,p90=p90 , spread=spread)
 
 def draw_grid_pair(axA, axB, axC, axD, axE, y_values, x_values, medians, counts,capped_sum,p10 ,p90 , spread, y_label, x_label,cmap_a,cmap_b,cmap_c,cmap_e,cmap_d,vcenter=100, thin_below=100):
     normA=TwoSlopeNorm(vcenter=vcenter,
@@ -68,12 +70,12 @@ def draw_panel(ax, values, cmap, norm, y_values, x_values, y_label, x_label,titl
     ax.figure.colorbar(im, ax=ax)
     ax.set_xticks(range(len(x_values)), list(x_values))
     ax.set_yticks(range(len(y_values)), list(y_values))
-    
+    ax.set_title(title)
 def draw_patches(ax, counts, y_values, x_values,threshold ):
-     for i, y in enumerate(y_values):
-            for j, x in enumerate(x_values):
-                if  threshold>counts[i,j]>0: 
-                    ax.add_patch(Rectangle((j-0.5, i-0.5), 1, 1, fill=False, ec="k", lw=1.5))
+    for i, y in enumerate(y_values):
+        for j, x in enumerate(x_values):
+            if  threshold>counts[i,j]>0: 
+                ax.add_patch(Rectangle((j-0.5, i-0.5), 1, 1, fill=False, ec="k", lw=1.5))
 cmap_a = matplotlib.colormaps["RdBu"].with_extremes(bad="0.6")
 cmap_b = matplotlib.colormaps["viridis"].with_extremes(bad="0.6",under="0.8")
 cmap_c = matplotlib.colormaps["plasma"].with_extremes(bad="0.6",under="0.8")
@@ -82,29 +84,29 @@ cmap_e = matplotlib.colormaps["magma"].with_extremes(bad="0.6",under="0.8")
 
 a = np.load(DATA_DIR / "round3_params.npy")
 fig2, (axA, axB, axC, axD, axE) = plt.subplots(1, 5, figsize=(25, 25))
-y_values,x_values,medians,counts,capped_sum,p10 ,p90 , spread = build_grid(data=a,y_col=1,x_col=4,value_col=8)
+grid = build_grid(data=a,y_col=1,x_col=4,value_col=8)
 
-draw_grid_pair(axA, axB, axC, axD, axE,  y_values, x_values, medians, counts, capped_sum,p10 ,p90 , spread, "n", "bar",cmap_a,cmap_b,cmap_c,cmap_e,cmap_d )
+draw_grid_pair(axA, axB, axC, axD, axE,  grid.y_values, grid.x_values, grid.medians, grid.counts, grid.capped_sum,grid.p10 ,grid.p90 , grid.spread, "n", "bar",cmap_a,cmap_b,cmap_c,cmap_e,cmap_d )
     
 
 
 
-for i, y in enumerate(y_values):
-    row = np.where(counts[i] > 99, medians[i], np.nan)
+for i, y in enumerate(grid.y_values):
+    row = np.where(grid.counts[i] > 99, grid.medians[i], np.nan)
     j = np.nanargmin(row)
-    print(x_values[j], counts[i, j], y)
+    print(grid.x_values[j], grid.counts[i, j], y)
 print(np.min(a[:,8]),np.min(a[:,0]))
 
-print(np.nanmin(medians), np.nanmax(medians))
+print(np.nanmin(grid.medians), np.nanmax(grid.medians))
 
-thin = (counts > 0) & (counts < 100)
+thin = (grid.counts > 0) & (grid.counts < 100)
 print(thin.sum())
-print(np.nanmin(p90))
-ok = counts > 99
-print(np.corrcoef(np.log(counts[ok]), np.log(spread[ok]))[0, 1])
+print(np.nanmin(grid.p90))
+ok = grid.counts > 99
+print(np.corrcoef(np.log(grid.counts[ok]), np.log(grid.spread[ok]))[0, 1])
 fig2.savefig(BASE_DIR / "bar_n_heatmap.png", dpi=150)
-
 A = plt.imread(BASE_DIR / "before.png")
 B = plt.imread(BASE_DIR / "bar_n_heatmap.png")
 print(np.array_equal(A, B))
+
 plt.show()
