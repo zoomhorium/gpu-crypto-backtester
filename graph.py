@@ -6,7 +6,14 @@ from matplotlib.colors import TwoSlopeNorm
 from matplotlib.patches import Rectangle
 import matplotlib
 from models import Grid
-
+from matplotlib.colors import Colormap, Normalize
+from dataclasses import dataclass
+@dataclass
+class Panel:
+    values: np.ndarray 
+    cmap: Colormap
+    norm: Normalize
+    title : str
 
 def build_grid(data, y_col, x_col, value_col, y_values=None, x_values=None, lower_limit=100, upper_limit=500):
 
@@ -40,22 +47,28 @@ def build_grid(data, y_col, x_col, value_col, y_values=None, x_values=None, lowe
     return Grid(y_values=y_values, x_values=x_values, medians=medians, counts=counts , capped_sum=capped_sum ,p10=p10 ,p90=p90 , spread=spread)
 
 def draw_grid_pair(axA, axB, axC, axD, axE, grid, y_label, x_label,cmap_a,cmap_b,cmap_c,cmap_e,cmap_d,vcenter=100, thin_below=100):
+    panels = []
     normA=TwoSlopeNorm(vcenter=vcenter,
                                         vmin=np.nanmin(grid.medians),
                                         vmax=np.nanmax(grid.medians))
-    draw_panel(ax=axA,values=grid.medians,cmap=cmap_a,norm=normA,y_values=grid.y_values,x_values=grid.x_values,y_label=y_label,x_label=x_label,title="MEDIAN")
+    panels.append(Panel(values=grid.medians,cmap=cmap_a,norm=normA,title="MEDIAN"))
+    
     normB=LogNorm(vmin=10, vmax=grid.counts.max())
-    draw_panel(ax=axB,values=grid.counts,cmap=cmap_b,norm=normB,y_values=grid.y_values,x_values=grid.x_values,y_label=y_label,x_label=x_label,title="COUNT")
+    panels.append(Panel(values=grid.counts,cmap=cmap_b,norm=normB,title="COUNT"))
     normC=LogNorm(vmin=1, vmax=grid.capped_sum.max())
-    draw_panel(ax=axC,values=grid.capped_sum,cmap=cmap_c,norm=normC,y_values=grid.y_values,x_values=grid.x_values,y_label=y_label,x_label=x_label,title="CAPPED SUM")
+    panels.append(Panel(values=grid.capped_sum,cmap=cmap_c,norm=normC,title="CAPPED SUM"))
     
     normD=TwoSlopeNorm(vcenter=100,
                                             vmin=np.nanmin(grid.p90),
                                             vmax=np.nanmax(grid.p90))
-    draw_panel(ax=axD,values=grid.p90,cmap=cmap_d,norm=normD,y_values=grid.y_values,x_values=grid.x_values,y_label=y_label,x_label=x_label,title="P90")
+    panels.append(Panel(values=grid.p90,cmap=cmap_d,norm=normD,title="P90"))
+    
     
     normE=LogNorm(vmin=0.1, vmax=grid.spread.max())
-    draw_panel(ax=axE,values=grid.spread,cmap=cmap_e,norm=normE,y_values=grid.y_values,x_values=grid.x_values,y_label=y_label,x_label=x_label,title="SPREAD")
+    panels.append(Panel(values=grid.spread,cmap=cmap_e,norm=normE,title="SPREAD"))
+    axes = (axA, axB, axC, axD, axE)
+    for ax, panel in zip(axes, panels):
+        draw_panel(ax=ax,y_values=grid.y_values,x_values=grid.x_values,y_label=y_label,x_label=x_label,panel=panel)
     
     
 
@@ -63,15 +76,15 @@ def draw_grid_pair(axA, axB, axC, axD, axE, grid, y_label, x_label,cmap_a,cmap_b
     draw_patches(ax=axA,counts=grid.counts,y_values=grid.y_values,x_values=grid.x_values,threshold=thin_below)
 
 
-def draw_panel(ax, values, cmap, norm, y_values, x_values, y_label, x_label,title):
-    im = ax.imshow(values,   cmap=cmap, norm=norm)
+def draw_panel(ax, y_values, x_values, y_label, x_label,panel):
+    im = ax.imshow(panel.values,   cmap=panel.cmap, norm=panel.norm)
     ax.invert_yaxis()  
     ax.set_xlabel(x_label)
     ax.set_ylabel(y_label)
     ax.figure.colorbar(im, ax=ax)
     ax.set_xticks(range(len(x_values)), list(x_values))
     ax.set_yticks(range(len(y_values)), list(y_values))
-    ax.set_title(title)
+    ax.set_title(panel.title)
 def draw_patches(ax, counts, y_values, x_values,threshold ):
     for i, y in enumerate(y_values):
         for j, x in enumerate(x_values):
