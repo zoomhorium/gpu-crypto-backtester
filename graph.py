@@ -14,6 +14,7 @@ class Panel:
     cmap: Colormap
     norm: Normalize
     title : str
+    mark_thin: bool = False
 
 def build_grid(data, y_col, x_col, value_col, y_values=None, x_values=None, lower_limit=100, upper_limit=500):
 
@@ -51,7 +52,7 @@ def draw_grid_pair(axA, axB, axC, axD, axE, grid, y_label, x_label,cmap_a,cmap_b
     normA=TwoSlopeNorm(vcenter=vcenter,
                                         vmin=np.nanmin(grid.medians),
                                         vmax=np.nanmax(grid.medians))
-    panels.append(Panel(values=grid.medians,cmap=cmap_a,norm=normA,title="MEDIAN"))
+    panels.append(Panel(values=grid.medians,cmap=cmap_a,norm=normA,title="MEDIAN",mark_thin=True))
     
     normB=LogNorm(vmin=10, vmax=grid.counts.max())
     panels.append(Panel(values=grid.counts,cmap=cmap_b,norm=normB,title="COUNT"))
@@ -67,16 +68,15 @@ def draw_grid_pair(axA, axB, axC, axD, axE, grid, y_label, x_label,cmap_a,cmap_b
     normE=LogNorm(vmin=0.1, vmax=grid.spread.max())
     panels.append(Panel(values=grid.spread,cmap=cmap_e,norm=normE,title="SPREAD"))
     axes = (axA, axB, axC, axD, axE)
-    for ax, panel in zip(axes, panels):
-        draw_panel(ax=ax,y_values=grid.y_values,x_values=grid.x_values,y_label=y_label,x_label=x_label,panel=panel)
+    for ax, panel in zip(axes, panels, strict=True):
+        draw_panel(ax=ax,y_values=grid.y_values,x_values=grid.x_values,y_label=y_label,x_label=x_label,panel=panel,threshold=thin_below,counts=grid.counts)
     
     
 
    
-    draw_patches(ax=axA,counts=grid.counts,y_values=grid.y_values,x_values=grid.x_values,threshold=thin_below)
+    
 
-
-def draw_panel(ax, y_values, x_values, y_label, x_label,panel):
+def draw_panel(ax, y_values, x_values, y_label, x_label,panel,threshold,counts):
     im = ax.imshow(panel.values,   cmap=panel.cmap, norm=panel.norm)
     ax.invert_yaxis()  
     ax.set_xlabel(x_label)
@@ -85,7 +85,9 @@ def draw_panel(ax, y_values, x_values, y_label, x_label,panel):
     ax.set_xticks(range(len(x_values)), list(x_values))
     ax.set_yticks(range(len(y_values)), list(y_values))
     ax.set_title(panel.title)
-def draw_patches(ax, counts, y_values, x_values,threshold ):
+    if panel.mark_thin:
+        draw_patches(ax=ax,counts=counts,y_values=y_values,x_values=x_values,threshold=threshold)
+def draw_patches(ax, counts, y_values, x_values,threshold):
     for i, y in enumerate(y_values):
         for j, x in enumerate(x_values):
             if  threshold>counts[i,j]>0: 
