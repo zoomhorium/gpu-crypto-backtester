@@ -7,6 +7,7 @@ from matplotlib.patches import Rectangle
 import matplotlib
 from models import Grid
 
+
 def build_grid(data, y_col, x_col, value_col, y_values=None, x_values=None, lower_limit=100, upper_limit=500):
 
     if y_values is None:
@@ -38,28 +39,28 @@ def build_grid(data, y_col, x_col, value_col, y_values=None, x_values=None, lowe
 
     return Grid(y_values=y_values, x_values=x_values, medians=medians, counts=counts , capped_sum=capped_sum ,p10=p10 ,p90=p90 , spread=spread)
 
-def draw_grid_pair(axA, axB, axC, axD, axE, y_values, x_values, medians, counts,capped_sum,p10 ,p90 , spread, y_label, x_label,cmap_a,cmap_b,cmap_c,cmap_e,cmap_d,vcenter=100, thin_below=100):
+def draw_grid_pair(axA, axB, axC, axD, axE, grid, y_label, x_label,cmap_a,cmap_b,cmap_c,cmap_e,cmap_d,vcenter=100, thin_below=100):
     normA=TwoSlopeNorm(vcenter=vcenter,
-                                        vmin=np.nanmin(medians),
-                                        vmax=np.nanmax(medians))
-    draw_panel(ax=axA,values=medians,cmap=cmap_a,norm=normA,y_values=y_values,x_values=x_values,y_label=y_label,x_label=x_label,title="MEDIAN")
-    normB=LogNorm(vmin=10, vmax=counts.max())
-    draw_panel(ax=axB,values=counts,cmap=cmap_b,norm=normB,y_values=y_values,x_values=x_values,y_label=y_label,x_label=x_label,title="COUNT")
-    normC=LogNorm(vmin=1, vmax=capped_sum.max())
-    draw_panel(ax=axC,values=capped_sum,cmap=cmap_c,norm=normC,y_values=y_values,x_values=x_values,y_label=y_label,x_label=x_label,title="CAPPED SUM")
+                                        vmin=np.nanmin(grid.medians),
+                                        vmax=np.nanmax(grid.medians))
+    draw_panel(ax=axA,values=grid.medians,cmap=cmap_a,norm=normA,y_values=grid.y_values,x_values=grid.x_values,y_label=y_label,x_label=x_label,title="MEDIAN")
+    normB=LogNorm(vmin=10, vmax=grid.counts.max())
+    draw_panel(ax=axB,values=grid.counts,cmap=cmap_b,norm=normB,y_values=grid.y_values,x_values=grid.x_values,y_label=y_label,x_label=x_label,title="COUNT")
+    normC=LogNorm(vmin=1, vmax=grid.capped_sum.max())
+    draw_panel(ax=axC,values=grid.capped_sum,cmap=cmap_c,norm=normC,y_values=grid.y_values,x_values=grid.x_values,y_label=y_label,x_label=x_label,title="CAPPED SUM")
     
     normD=TwoSlopeNorm(vcenter=100,
-                                            vmin=np.nanmin(p90),
-                                            vmax=np.nanmax(p90))
-    draw_panel(ax=axD,values=p90,cmap=cmap_d,norm=normD,y_values=y_values,x_values=x_values,y_label=y_label,x_label=x_label,title="P90")
+                                            vmin=np.nanmin(grid.p90),
+                                            vmax=np.nanmax(grid.p90))
+    draw_panel(ax=axD,values=grid.p90,cmap=cmap_d,norm=normD,y_values=grid.y_values,x_values=grid.x_values,y_label=y_label,x_label=x_label,title="P90")
     
-    normE=LogNorm(vmin=0.1, vmax=spread.max())
-    draw_panel(ax=axE,values=spread,cmap=cmap_e,norm=normE,y_values=y_values,x_values=x_values,y_label=y_label,x_label=x_label,title="SPREAD")
+    normE=LogNorm(vmin=0.1, vmax=grid.spread.max())
+    draw_panel(ax=axE,values=grid.spread,cmap=cmap_e,norm=normE,y_values=grid.y_values,x_values=grid.x_values,y_label=y_label,x_label=x_label,title="SPREAD")
     
     
 
    
-    draw_patches(ax=axA,counts=counts,y_values=y_values,x_values=x_values,threshold=thin_below)
+    draw_patches(ax=axA,counts=grid.counts,y_values=grid.y_values,x_values=grid.x_values,threshold=thin_below)
 
 
 def draw_panel(ax, values, cmap, norm, y_values, x_values, y_label, x_label,title):
@@ -86,7 +87,7 @@ a = np.load(DATA_DIR / "round3_params.npy")
 fig2, (axA, axB, axC, axD, axE) = plt.subplots(1, 5, figsize=(25, 25))
 grid = build_grid(data=a,y_col=1,x_col=4,value_col=8)
 
-draw_grid_pair(axA, axB, axC, axD, axE,  grid.y_values, grid.x_values, grid.medians, grid.counts, grid.capped_sum,grid.p10 ,grid.p90 , grid.spread, "n", "bar",cmap_a,cmap_b,cmap_c,cmap_e,cmap_d )
+draw_grid_pair(axA, axB, axC, axD, axE,  grid, "n", "bar",cmap_a,cmap_b,cmap_c,cmap_e,cmap_d )
     
 
 
