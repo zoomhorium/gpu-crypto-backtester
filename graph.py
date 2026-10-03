@@ -15,8 +15,8 @@ class Panel:
     norm: Normalize
     title : str
     mark_thin: bool = False
-
-def build_grid(data, y_col, x_col, value_col, y_values=None, x_values=None, lower_limit=100, upper_limit=500):
+    
+def build_grid(data, y_col, x_col, value_col, y_values=None, x_values=None, lower_limit=100, upper_limit=500,balance_col=0):
 
     if y_values is None:
         y_values=range(int(np.min(np.unique(data[:,y_col]))),int(np.max(np.unique(data[:,y_col])))+1 )
@@ -28,7 +28,7 @@ def build_grid(data, y_col, x_col, value_col, y_values=None, x_values=None, lowe
     p10 = np.full(( len(y_values),len(x_values)), np.nan) 
     p90 = np.full(( len(y_values),len(x_values)), np.nan)
     spread = np.zeros(( len(y_values),len(x_values)), dtype=float)
-    
+    drawdown = np.full(( len(y_values),len(x_values)), np.nan)
     for i, y in enumerate(y_values):
 
         for j, x in enumerate(x_values):
@@ -36,7 +36,7 @@ def build_grid(data, y_col, x_col, value_col, y_values=None, x_values=None, lowe
             counts[i, j] = mask.sum()
             if counts[i, j]:
                 medians[i, j] = np.median(data[mask, value_col])
-
+                drawdown[i,j] = np.median(1 - data[mask, value_col] / data[mask, balance_col])
                 p10[i, j],p90[i, j] = np.percentile(data[mask, value_col],[10,90])
                 spread[i,j] =( p90[i, j]- p10[i, j])/medians[i, j]
                 norm_data = (data[mask, value_col] - lower_limit) / (upper_limit - lower_limit)
@@ -45,9 +45,9 @@ def build_grid(data, y_col, x_col, value_col, y_values=None, x_values=None, lowe
                 capped_sum[i,j] = np.sum(np.clip(norm_data, 0, 1))
         
 
-    return Grid(y_values=y_values, x_values=x_values, medians=medians, counts=counts , capped_sum=capped_sum ,p10=p10 ,p90=p90 , spread=spread)
+    return Grid(y_values=y_values, x_values=x_values, medians=medians, counts=counts , capped_sum=capped_sum ,p10=p10 ,p90=p90 , spread=spread,drawdown = drawdown)
 
-def draw_grid_pair(axA, axB, axC, axD, axE, grid, y_label, x_label,cmap_a,cmap_b,cmap_c,cmap_e,cmap_d,vcenter=100, thin_below=100):
+def draw_grid_pair(axes, grid, y_label, x_label,cmap_a,cmap_b,cmap_c,cmap_e,cmap_d,cmap_f,vcenter=100, thin_below=100):
     panels = []
     normA=TwoSlopeNorm(vcenter=vcenter,
                                         vmin=np.nanmin(grid.medians),
@@ -67,8 +67,9 @@ def draw_grid_pair(axA, axB, axC, axD, axE, grid, y_label, x_label,cmap_a,cmap_b
     
     normE=LogNorm(vmin=0.1, vmax=grid.spread.max())
     panels.append(Panel(values=grid.spread,cmap=cmap_e,norm=normE,title="SPREAD"))
-    axes = (axA, axB, axC, axD, axE)
-    for ax, panel in zip(axes, panels, strict=True):
+    normF=Normalize(vmin=0, vmax=1)
+    panels.append(Panel(values=grid.drawdown,cmap=cmap_f,norm=normF,title="DRAWDOWN"))
+    for ax, panel in zip(axes.flat, panels, strict=True):
         draw_panel(ax=ax,y_values=grid.y_values,x_values=grid.x_values,y_label=y_label,x_label=x_label,panel=panel,threshold=thin_below,counts=grid.counts)
     
     
@@ -97,12 +98,13 @@ cmap_b = matplotlib.colormaps["viridis"].with_extremes(bad="0.6",under="0.8")
 cmap_c = matplotlib.colormaps["plasma"].with_extremes(bad="0.6",under="0.8")
 cmap_d = matplotlib.colormaps["PuBu"].with_extremes(bad="0.6")
 cmap_e = matplotlib.colormaps["magma"].with_extremes(bad="0.6",under="0.8")
+cmap_f = matplotlib.colormaps["inferno"].with_extremes(bad="0.6",under="0.8")
 
 a = np.load(DATA_DIR / "round3_params.npy")
-fig2, (axA, axB, axC, axD, axE) = plt.subplots(1, 5, figsize=(25, 25))
+fig2, axes = plt.subplots(2, 3, figsize=(24, 14), layout="constrained")
 grid = build_grid(data=a,y_col=1,x_col=4,value_col=8)
 
-draw_grid_pair(axA, axB, axC, axD, axE,  grid, "n", "bar",cmap_a,cmap_b,cmap_c,cmap_e,cmap_d )
+draw_grid_pair(axes,  grid, "n", "bar",cmap_a,cmap_b,cmap_c,cmap_e,cmap_d ,cmap_f)
     
 
 
@@ -124,5 +126,5 @@ fig2.savefig(BASE_DIR / "bar_n_heatmap.png", dpi=150)
 A = plt.imread(BASE_DIR / "before.png")
 B = plt.imread(BASE_DIR / "bar_n_heatmap.png")
 print(np.array_equal(A, B))
-
+print(np.nanmin(grid.drawdown), np.nanmax(grid.drawdown))
 plt.show()
