@@ -12,6 +12,7 @@ class Grid:
     p10 : np.ndarray
     p90  : np.ndarray
     spread: np.ndarray
+    drawdown : np.ndarray
 @dataclass
 class Ranges:
     leverage: Iterable
