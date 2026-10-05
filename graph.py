@@ -79,12 +79,13 @@ def draw_grid_pair(axes, grid, y_label, x_label,cmap_a,cmap_b,cmap_c,cmap_e,cmap
 
 def draw_panel(ax, y_values, x_values, y_label, x_label,panel,threshold,counts):
     im = ax.imshow(panel.values,   cmap=panel.cmap, norm=panel.norm)
-    ax.invert_yaxis()  
+    ax.invert_yaxis()     
     ax.set_xlabel(x_label)
     ax.set_ylabel(y_label)
     ax.figure.colorbar(im, ax=ax)
     ax.set_xticks(range(len(x_values)), list(x_values))
     ax.set_yticks(range(len(y_values)), list(y_values))
+    ax.tick_params(labelbottom=True,labelleft=True)
     ax.set_title(panel.title)
     if panel.mark_thin:
         draw_patches(ax=ax,counts=counts,y_values=y_values,x_values=x_values,threshold=threshold)
@@ -101,7 +102,7 @@ cmap_e = matplotlib.colormaps["magma"].with_extremes(bad="0.6",under="0.8")
 cmap_f = matplotlib.colormaps["inferno"].with_extremes(bad="0.6",under="0.8")
 
 a = np.load(DATA_DIR / "round3_params.npy")
-fig2, axes = plt.subplots(2, 3, figsize=(24, 14), layout="constrained")
+fig2, axes = plt.subplots(2, 3, figsize=(24, 14), layout="constrained",sharex="all",sharey="all")
 grid = build_grid(data=a,y_col=1,x_col=4,value_col=8)
 
 draw_grid_pair(axes,  grid, "n", "bar",cmap_a,cmap_b,cmap_c,cmap_e,cmap_d ,cmap_f)
@@ -123,8 +124,6 @@ print(np.nanmin(grid.p90))
 ok = grid.counts > 99
 print(np.corrcoef(np.log(grid.counts[ok]), np.log(grid.spread[ok]))[0, 1])
 fig2.savefig(BASE_DIR / "bar_n_heatmap.png", dpi=150)
-A = plt.imread(BASE_DIR / "before.png")
-B = plt.imread(BASE_DIR / "bar_n_heatmap.png")
-print(np.array_equal(A, B))
+
 print(np.nanmin(grid.drawdown), np.nanmax(grid.drawdown))
 plt.show()
