@@ -4,10 +4,15 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 from matplotlib.colors import TwoSlopeNorm
 from matplotlib.patches import Rectangle
+
 import matplotlib
+
 from models import Grid
 from matplotlib.colors import Colormap, Normalize
 from dataclasses import dataclass
+
+import math
+from numbers import Number, Real
 @dataclass
 class Panel:
     values: np.ndarray 
@@ -48,6 +53,11 @@ def build_grid(data, y_col, x_col, value_col, y_values=None, x_values=None, lowe
     return Grid(y_values=y_values, x_values=x_values, medians=medians, counts=counts , capped_sum=capped_sum ,p10=p10 ,p90=p90 , spread=spread,drawdown = drawdown)
 
 def draw_grid_pair(axes, grid, y_label, x_label,cmap_a,cmap_b,cmap_c,cmap_e,cmap_d,cmap_f,vcenter=100, thin_below=100):
+    def format_coord_custom(x, y):
+ 
+        return f'{x_label}={math.floor((x+0.5))+np.min(np.unique(grid.x_values))}, {y_label}={math.floor((y+0.5))+np.min(np.unique(grid.y_values))}'
+    
+    
     panels = []
     normA=TwoSlopeNorm(vcenter=vcenter,
                                         vmin=np.nanmin(grid.medians),
@@ -69,17 +79,27 @@ def draw_grid_pair(axes, grid, y_label, x_label,cmap_a,cmap_b,cmap_c,cmap_e,cmap
     panels.append(Panel(values=grid.spread,cmap=cmap_e,norm=normE,title="SPREAD"))
     normF=Normalize(vmin=0, vmax=1)
     panels.append(Panel(values=grid.drawdown,cmap=cmap_f,norm=normF,title="DRAWDOWN"))
-    for ax, panel in zip(axes.flat, panels, strict=True):
-        draw_panel(ax=ax,y_values=grid.y_values,x_values=grid.x_values,y_label=y_label,x_label=x_label,panel=panel,threshold=thin_below,counts=grid.counts)
-    
-    
-
    
+    for ax, panel in zip(axes.flat, panels, strict=True):
+        draw_panel(ax=ax,y_values=grid.y_values,x_values=grid.x_values,y_label=y_label,x_label=x_label,panel=panel,threshold=thin_below,counts=grid.counts,format_coord_custom =format_coord_custom )
     
 
-def draw_panel(ax, y_values, x_values, y_label, x_label,panel,threshold,counts):
+
+def format_cursor_data_custom( data):   
+    try:
+        data[0]
+    except (TypeError, IndexError):
+        data = [data]
+    data_str = ', '.join(f'{item:0.5g}' for item in data
+                            if isinstance(item, Number))
+    return "[" + data_str + "]"
+def draw_panel(ax, y_values, x_values, y_label, x_label,panel,threshold,counts,format_coord_custom ):
+    
     im = ax.imshow(panel.values,   cmap=panel.cmap, norm=panel.norm)
-    ax.invert_yaxis()     
+    im.format_cursor_data=format_cursor_data_custom
+    ax.invert_yaxis()    
+    ax.format_coord = format_coord_custom
+    
     ax.set_xlabel(x_label)
     ax.set_ylabel(y_label)
     ax.figure.colorbar(im, ax=ax)
@@ -94,6 +114,8 @@ def draw_patches(ax, counts, y_values, x_values,threshold):
         for j, x in enumerate(x_values):
             if  threshold>counts[i,j]>0: 
                 ax.add_patch(Rectangle((j-0.5, i-0.5), 1, 1, fill=False, ec="k", lw=1.5))
+
+
 cmap_a = matplotlib.colormaps["RdBu"].with_extremes(bad="0.6")
 cmap_b = matplotlib.colormaps["viridis"].with_extremes(bad="0.6",under="0.8")
 cmap_c = matplotlib.colormaps["plasma"].with_extremes(bad="0.6",under="0.8")
@@ -101,12 +123,13 @@ cmap_d = matplotlib.colormaps["PuBu"].with_extremes(bad="0.6")
 cmap_e = matplotlib.colormaps["magma"].with_extremes(bad="0.6",under="0.8")
 cmap_f = matplotlib.colormaps["inferno"].with_extremes(bad="0.6",under="0.8")
 
+
 a = np.load(DATA_DIR / "round3_params.npy")
 fig2, axes = plt.subplots(2, 3, figsize=(24, 14), layout="constrained",sharex="all",sharey="all")
 grid = build_grid(data=a,y_col=1,x_col=4,value_col=8)
 
 draw_grid_pair(axes,  grid, "n", "bar",cmap_a,cmap_b,cmap_c,cmap_e,cmap_d ,cmap_f)
-    
+
 
 
 
@@ -123,7 +146,10 @@ print(thin.sum())
 print(np.nanmin(grid.p90))
 ok = grid.counts > 99
 print(np.corrcoef(np.log(grid.counts[ok]), np.log(grid.spread[ok]))[0, 1])
+
 fig2.savefig(BASE_DIR / "bar_n_heatmap.png", dpi=150)
+assert axes[0][0].format_coord(np.max(grid.x_values)-np.min(grid.x_values), np.max(grid.y_values)-np.min(grid.y_values))==f'bar={np.max(grid.x_values)}, n={(np.max(grid.y_values))}',"Wrong max"
+assert axes[0][0].format_coord(0, 0)==f'bar={np.min(grid.x_values)}, n={(np.min(grid.y_values))}',"Wrong min "
 
 print(np.nanmin(grid.drawdown), np.nanmax(grid.drawdown))
 plt.show()
