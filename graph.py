@@ -12,7 +12,87 @@ from matplotlib.colors import Colormap, Normalize
 from dataclasses import dataclass
 
 import math
-from numbers import Number, Real
+from numbers import Number
+
+
+class Cursor:
+    """
+    A cross hair cursor.
+    """
+    def __init__(self, axes):
+        self.axes = list(axes.flat)
+        self.backgrounds = []
+        self.horizontal_lines=[]
+        self.vertical_lines = []
+        
+        self._creating_background = False
+        for ax in self.axes:
+            self.horizontal_lines.append(ax.axhline(color='k', lw=0.8, ls='--'))
+            self.vertical_lines.append(ax.axvline(color='k', lw=0.8, ls='--'))
+            self.backgrounds.append(None)
+            
+            
+        ax.figure.canvas.mpl_connect('draw_event', self.on_draw)
+
+    def on_draw(self, event):
+        self.create_new_background()
+
+    def set_cross_hair_visible(self, visible):
+        for hl,vl in zip(self.horizontal_lines,self.vertical_lines,strict=True):
+            need_redraw = hl.get_visible() != visible
+            hl.set_visible(visible)
+            vl.set_visible(visible)
+        
+        return need_redraw
+
+    def create_new_background(self):
+        if self._creating_background:
+            # discard calls triggered from within this function
+            return
+        new_background=[]
+        self._creating_background = True
+
+        self.set_cross_hair_visible(False)
+        
+        self.axes[0].figure.canvas.draw()
+        for ax in self.axes:
+            
+            
+           
+            
+
+            new_background.append(ax.figure.canvas.copy_from_bbox(ax.bbox))
+        self.backgrounds=new_background
+        self.set_cross_hair_visible(True) 
+        
+         
+        
+        
+        self._creating_background = False
+
+    def on_mouse_move(self, event):
+       
+        for ax,hl,vl,background in zip(self.axes,self.horizontal_lines,self.vertical_lines,self.backgrounds,strict=True):
+            if background is None:
+                self.create_new_background()
+            if event.inaxes not in self.axes:
+                self.set_cross_hair_visible(False)
+                
+                ax.figure.canvas.restore_region(background)
+                ax.figure.canvas.blit(ax.bbox)
+            else:
+                self.set_cross_hair_visible(True)
+                # update the line positions
+                x, y = event.xdata, event.ydata
+                hl.set_ydata([y])
+                vl.set_xdata([x])
+                
+
+                ax.figure.canvas.restore_region(background)
+                ax.draw_artist(hl)
+                ax.draw_artist(vl)                
+                ax.figure.canvas.blit(ax.bbox)
+
 @dataclass
 class Panel:
     values: np.ndarray 
@@ -130,6 +210,8 @@ grid = build_grid(data=a,y_col=1,x_col=4,value_col=8)
 
 draw_grid_pair(axes,  grid, "n", "bar",cmap_a,cmap_b,cmap_c,cmap_e,cmap_d ,cmap_f)
 
+cursor = Cursor(axes)
+fig2.canvas.mpl_connect('motion_notify_event', cursor.on_mouse_move)
 
 
 
