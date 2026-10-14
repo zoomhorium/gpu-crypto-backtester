@@ -32,18 +32,18 @@ class Cursor:
             self.backgrounds.append(None)
             
             
-        ax.figure.canvas.mpl_connect('draw_event', self.on_draw)
+        self.axes[0].figure.canvas.mpl_connect('draw_event', self.on_draw)
 
     def on_draw(self, event):
         self.create_new_background()
 
     def set_cross_hair_visible(self, visible):
         for hl,vl in zip(self.horizontal_lines,self.vertical_lines,strict=True):
-            need_redraw = hl.get_visible() != visible
+            
             hl.set_visible(visible)
             vl.set_visible(visible)
         
-        return need_redraw
+        
 
     def create_new_background(self):
         if self._creating_background:
@@ -134,8 +134,13 @@ def build_grid(data, y_col, x_col, value_col, y_values=None, x_values=None, lowe
 
 def draw_grid_pair(axes, grid, y_label, x_label,cmap_a,cmap_b,cmap_c,cmap_e,cmap_d,cmap_f,vcenter=100, thin_below=100):
     def format_coord_custom(x, y):
- 
-        return f'{x_label}={math.floor((x+0.5))+np.min(np.unique(grid.x_values))}, {y_label}={math.floor((y+0.5))+np.min(np.unique(grid.y_values))}'
+        if x<-0.5 or y<-0.5 or np.max(grid.y_values)-np.min(grid.y_values)+0.5<=y or np.max(grid.x_values)-np.min(grid.x_values)+0.5<=x:
+            return "Too far"
+        value_str = ""
+        for panel in panels:
+            value_str=value_str+panel.title+" = "+f"{panel.values[math.floor(y + 0.5)][math.floor(x + 0.5)].item():0.5g} "+"   "
+        
+        return f'{x_label}={math.floor((x+0.5))+np.min(np.unique(grid.x_values))}, {y_label}={math.floor((y+0.5))+np.min(np.unique(grid.y_values))}'+'\n' + value_str
     
     
     panels = []
@@ -230,8 +235,21 @@ ok = grid.counts > 99
 print(np.corrcoef(np.log(grid.counts[ok]), np.log(grid.spread[ok]))[0, 1])
 
 fig2.savefig(BASE_DIR / "bar_n_heatmap.png", dpi=150)
-assert axes[0][0].format_coord(np.max(grid.x_values)-np.min(grid.x_values), np.max(grid.y_values)-np.min(grid.y_values))==f'bar={np.max(grid.x_values)}, n={(np.max(grid.y_values))}',"Wrong max"
-assert axes[0][0].format_coord(0, 0)==f'bar={np.min(grid.x_values)}, n={(np.min(grid.y_values))}',"Wrong min "
 
+fc = axes[0][0].format_coord
+x_edge = len(grid.x_values) - 0.5          # where the last column ends
+y_edge = len(grid.y_values) - 0.5          # where the last row ends
+first_bar, last_bar = grid.x_values[0], grid.x_values[-1]
+first_n, last_n = grid.y_values[0], grid.y_values[-1]
+assert axes[0][0].format_coord(np.max(grid.x_values)-np.min(grid.x_values), np.max(grid.y_values)-np.min(grid.y_values)).split("\n")[0]==f'bar={np.max(grid.x_values)}, n={(np.max(grid.y_values))}',"Wrong max"
+assert axes[0][0].format_coord(0, 0).split("\n")[0]==f'bar={np.min(grid.x_values)}, n={(np.min(grid.y_values))}',"Wrong min "
+assert fc(x_edge - 0.01, 0).split("\n")[0] == f"bar={last_bar}, n={first_n}", "Last column, just inside"
+assert fc(x_edge, 0) == "Too far", "Last column, on the edge"
+assert fc(-0.5, 0).split("\n")[0] == f"bar={first_bar}, n={first_n}", "First column, on the edge"
+assert fc(-0.51, 0) == "Too far", "First column, just outside"
+assert fc(0, y_edge - 0.01).split("\n")[0] == f"bar={first_bar}, n={last_n}", "Last row, just inside"
+assert fc(0, y_edge) == "Too far", "Last row, on the edge"
+assert fc(0, -0.5).split("\n")[0] == f"bar={first_bar}, n={first_n}", "First row, on the edge"
+assert fc(0, -0.51) == "Too far", "First row, just outside"
 print(np.nanmin(grid.drawdown), np.nanmax(grid.drawdown))
 plt.show()
