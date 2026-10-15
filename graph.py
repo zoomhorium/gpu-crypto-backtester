@@ -242,6 +242,7 @@ y_edge = len(grid.y_values) - 0.5          # where the last row ends
 first_bar, last_bar = grid.x_values[0], grid.x_values[-1]
 first_n, last_n = grid.y_values[0], grid.y_values[-1]
 assert axes[0][0].format_coord(np.max(grid.x_values)-np.min(grid.x_values), np.max(grid.y_values)-np.min(grid.y_values)).split("\n")[0]==f'bar={np.max(grid.x_values)}, n={(np.max(grid.y_values))}',"Wrong max"
+assert "COUNT = 497 " in fc(22, 0), "Wrong COUNT"
 assert axes[0][0].format_coord(0, 0).split("\n")[0]==f'bar={np.min(grid.x_values)}, n={(np.min(grid.y_values))}',"Wrong min "
 assert fc(x_edge - 0.01, 0).split("\n")[0] == f"bar={last_bar}, n={first_n}", "Last column, just inside"
 assert fc(x_edge, 0) == "Too far", "Last column, on the edge"
