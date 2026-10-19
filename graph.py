@@ -25,16 +25,18 @@ class Cursor:
         self.horizontal_lines=[]
         self.vertical_lines = []
         
-        self._creating_background = False
+        
         for ax in self.axes:
-            self.horizontal_lines.append(ax.axhline(color='k', lw=0.8, ls='--'))
-            self.vertical_lines.append(ax.axvline(color='k', lw=0.8, ls='--'))
+            self.horizontal_lines.append(ax.axhline(color='k', lw=0.8, ls='--',animated=True))
+            self.vertical_lines.append(ax.axvline(color='k', lw=0.8, ls='--',animated=True))
+            self.set_cross_hair_visible(False)
             self.backgrounds.append(None)
-            
+        
             
         self.axes[0].figure.canvas.mpl_connect('draw_event', self.on_draw)
 
     def on_draw(self, event):
+        
         self.create_new_background()
 
     def set_cross_hair_visible(self, visible):
@@ -46,15 +48,13 @@ class Cursor:
         
 
     def create_new_background(self):
-        if self._creating_background:
-            # discard calls triggered from within this function
-            return
-        new_background=[]
-        self._creating_background = True
-
-        self.set_cross_hair_visible(False)
         
-        self.axes[0].figure.canvas.draw()
+        new_background=[]
+        
+
+       
+        
+        
         for ax in self.axes:
             
             
@@ -63,15 +63,15 @@ class Cursor:
 
             new_background.append(ax.figure.canvas.copy_from_bbox(ax.bbox))
         self.backgrounds=new_background
-        self.set_cross_hair_visible(True) 
+        
         
          
         
         
-        self._creating_background = False
+        
 
     def on_mouse_move(self, event):
-       
+        
         for ax,hl,vl,background in zip(self.axes,self.horizontal_lines,self.vertical_lines,self.backgrounds,strict=True):
             if background is None:
                 self.create_new_background()
@@ -79,7 +79,7 @@ class Cursor:
                 self.set_cross_hair_visible(False)
                 
                 ax.figure.canvas.restore_region(background)
-                ax.figure.canvas.blit(ax.bbox)
+                
             else:
                 self.set_cross_hair_visible(True)
                 # update the line positions
@@ -91,8 +91,9 @@ class Cursor:
                 ax.figure.canvas.restore_region(background)
                 ax.draw_artist(hl)
                 ax.draw_artist(vl)                
-                ax.figure.canvas.blit(ax.bbox)
-
+        for ax in self.axes:
+            ax.figure.canvas.blit(ax.bbox)
+        
 @dataclass
 class Panel:
     values: np.ndarray 
