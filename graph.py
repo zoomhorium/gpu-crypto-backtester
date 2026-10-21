@@ -202,56 +202,70 @@ def draw_patches(ax, counts, y_values, x_values,threshold):
                 ax.add_patch(Rectangle((j-0.5, i-0.5), 1, 1, fill=False, ec="k", lw=1.5))
 
 
-cmap_a = matplotlib.colormaps["RdBu"].with_extremes(bad="0.6")
-cmap_b = matplotlib.colormaps["viridis"].with_extremes(bad="0.6",under="0.8")
-cmap_c = matplotlib.colormaps["plasma"].with_extremes(bad="0.6",under="0.8")
-cmap_d = matplotlib.colormaps["PuBu"].with_extremes(bad="0.6")
-cmap_e = matplotlib.colormaps["magma"].with_extremes(bad="0.6",under="0.8")
-cmap_f = matplotlib.colormaps["inferno"].with_extremes(bad="0.6",under="0.8")
+
+def graph(fig,grid,y_label, x_label):
+    axes=fig.subplots(2, 3, sharex="all",sharey="all")
+    cursor = Cursor(axes)
+    cmap_a = matplotlib.colormaps["RdBu"].with_extremes(bad="0.6")
+    cmap_b = matplotlib.colormaps["viridis"].with_extremes(bad="0.6",under="0.8")
+    cmap_c = matplotlib.colormaps["plasma"].with_extremes(bad="0.6",under="0.8")
+    cmap_d = matplotlib.colormaps["PuBu"].with_extremes(bad="0.6")
+    cmap_e = matplotlib.colormaps["magma"].with_extremes(bad="0.6",under="0.8")
+    cmap_f = matplotlib.colormaps["inferno"].with_extremes(bad="0.6",under="0.8")
+
+    
+
+    draw_grid_pair(axes,  grid, y_label, x_label,cmap_a,cmap_b,cmap_c,cmap_e,cmap_d ,cmap_f)
+    fig.canvas.mpl_connect('motion_notify_event', cursor.on_mouse_move)
+    return cursor,axes
+if __name__ == "__main__":
+    fig = plt.figure(figsize=(24, 14), layout="constrained") 
+
+    a = np.load(DATA_DIR / "round3_params.npy")
+    grid = build_grid(data=a,y_col=1,x_col=4,value_col=8)
+    cursor,axes=graph( fig=fig,grid=grid,y_label= "n", x_label="bar")
 
 
-a = np.load(DATA_DIR / "round3_params.npy")
-fig2, axes = plt.subplots(2, 3, figsize=(24, 14), layout="constrained",sharex="all",sharey="all")
-grid = build_grid(data=a,y_col=1,x_col=4,value_col=8)
+    
 
-draw_grid_pair(axes,  grid, "n", "bar",cmap_a,cmap_b,cmap_c,cmap_e,cmap_d ,cmap_f)
+    
+    
 
-cursor = Cursor(axes)
-fig2.canvas.mpl_connect('motion_notify_event', cursor.on_mouse_move)
+   
 
 
 
-for i, y in enumerate(grid.y_values):
-    row = np.where(grid.counts[i] > 99, grid.medians[i], np.nan)
-    j = np.nanargmin(row)
-    print(grid.x_values[j], grid.counts[i, j], y)
-print(np.min(a[:,8]),np.min(a[:,0]))
+    for i, y in enumerate(grid.y_values):
+        row = np.where(grid.counts[i] > 99, grid.medians[i], np.nan)
+        j = np.nanargmin(row)
+        print(grid.x_values[j], grid.counts[i, j], y)
+    print(np.min(a[:,8]),np.min(a[:,0]))
 
-print(np.nanmin(grid.medians), np.nanmax(grid.medians))
+    print(np.nanmin(grid.medians), np.nanmax(grid.medians))
 
-thin = (grid.counts > 0) & (grid.counts < 100)
-print(thin.sum())
-print(np.nanmin(grid.p90))
-ok = grid.counts > 99
-print(np.corrcoef(np.log(grid.counts[ok]), np.log(grid.spread[ok]))[0, 1])
+    thin = (grid.counts > 0) & (grid.counts < 100)
+    print(thin.sum())
+    print(np.nanmin(grid.p90))
+    ok = grid.counts > 99
+    print(np.corrcoef(np.log(grid.counts[ok]), np.log(grid.spread[ok]))[0, 1])
 
-fig2.savefig(BASE_DIR / "bar_n_heatmap.png", dpi=150)
+    fig.savefig(BASE_DIR / "bar_n_heatmap.png", dpi=150)
 
-fc = axes[0][0].format_coord
-x_edge = len(grid.x_values) - 0.5          # where the last column ends
-y_edge = len(grid.y_values) - 0.5          # where the last row ends
-first_bar, last_bar = grid.x_values[0], grid.x_values[-1]
-first_n, last_n = grid.y_values[0], grid.y_values[-1]
-assert axes[0][0].format_coord(np.max(grid.x_values)-np.min(grid.x_values), np.max(grid.y_values)-np.min(grid.y_values)).split("\n")[0]==f'bar={np.max(grid.x_values)}, n={(np.max(grid.y_values))}',"Wrong max"
-assert "COUNT = 497 " in fc(22, 0), "Wrong COUNT"
-assert axes[0][0].format_coord(0, 0).split("\n")[0]==f'bar={np.min(grid.x_values)}, n={(np.min(grid.y_values))}',"Wrong min "
-assert fc(x_edge - 0.01, 0).split("\n")[0] == f"bar={last_bar}, n={first_n}", "Last column, just inside"
-assert fc(x_edge, 0) == "Too far", "Last column, on the edge"
-assert fc(-0.5, 0).split("\n")[0] == f"bar={first_bar}, n={first_n}", "First column, on the edge"
-assert fc(-0.51, 0) == "Too far", "First column, just outside"
-assert fc(0, y_edge - 0.01).split("\n")[0] == f"bar={first_bar}, n={last_n}", "Last row, just inside"
-assert fc(0, y_edge) == "Too far", "Last row, on the edge"
-assert fc(0, -0.5).split("\n")[0] == f"bar={first_bar}, n={first_n}", "First row, on the edge"
-assert fc(0, -0.51) == "Too far", "First row, just outside"
-print(np.nanmin(grid.drawdown), np.nanmax(grid.drawdown))
-plt.show()
+    fc = axes[0][0].format_coord
+    x_edge = len(grid.x_values) - 0.5          # where the last column ends
+    y_edge = len(grid.y_values) - 0.5          # where the last row ends
+    first_bar, last_bar = grid.x_values[0], grid.x_values[-1]
+    first_n, last_n = grid.y_values[0], grid.y_values[-1]
+    assert axes[0][0].format_coord(np.max(grid.x_values)-np.min(grid.x_values), np.max(grid.y_values)-np.min(grid.y_values)).split("\n")[0]==f'bar={np.max(grid.x_values)}, n={(np.max(grid.y_values))}',"Wrong max"
+    assert "COUNT = 497 " in fc(22, 0), "Wrong COUNT"
+    assert axes[0][0].format_coord(0, 0).split("\n")[0]==f'bar={np.min(grid.x_values)}, n={(np.min(grid.y_values))}',"Wrong min "
+    assert fc(x_edge - 0.01, 0).split("\n")[0] == f"bar={last_bar}, n={first_n}", "Last column, just inside"
+    assert fc(x_edge, 0) == "Too far", "Last column, on the edge"
+    assert fc(-0.5, 0).split("\n")[0] == f"bar={first_bar}, n={first_n}", "First column, on the edge"
+    assert fc(-0.51, 0) == "Too far", "First column, just outside"
+    assert fc(0, y_edge - 0.01).split("\n")[0] == f"bar={first_bar}, n={last_n}", "Last row, just inside"
+    assert fc(0, y_edge) == "Too far", "Last row, on the edge"
+    assert fc(0, -0.5).split("\n")[0] == f"bar={first_bar}, n={first_n}", "First row, on the edge"
+    assert fc(0, -0.51) == "Too far", "First row, just outside"
+    print(np.nanmin(grid.drawdown), np.nanmax(grid.drawdown))
+    plt.show()
