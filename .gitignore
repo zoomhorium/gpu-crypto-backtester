@@ -10,3 +10,4 @@ data/
 out.txt
 __pycache__/
 .pytest_cache/
+expected_output.txt
