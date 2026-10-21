@@ -3,7 +3,7 @@ from pathlib import Path
 import dataclasses
 import json
 from models import Ranges
-def save(survivors,path,ranges):
+def save(path,survivors,ranges):
     np.save(path, survivors)
     side_path=path.with_suffix(".json")
     ranges_dict=dataclasses.asdict(ranges)
@@ -17,9 +17,10 @@ def rangeJson(obj):
         stop_val  = obj.stop
         step_val  = obj.step
         return start_val,stop_val ,step_val
+    raise TypeError(f"Can't write {type(obj).__name__} to JSON")
 if __name__ == "__main__":
     DATA_DIR = Path(__file__).resolve().parent
     survivors=[1,12,2,2,3,23,435,31,242,14,12,41,24,124,12,41]
     path=DATA_DIR / "scratch_test.npy"
     ranges=Ranges(range(1,10),range(1,10),range(1,10),range(1,10),range(1,10),range(1,10))
-    save(survivors,path,ranges)
+    save(path,survivors,ranges)
