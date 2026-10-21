@@ -1,1 +1,12 @@
-.env
+# secrets
+*.env
+
+# data (round1 alone is 24.6 GB)
+data/
+*.npy
+
+# generated files
+*.png
+out.txt
+__pycache__/
+.pytest_cache/
