@@ -1,0 +1,10 @@
+numpy
+cupy-cuda13x
+scipy
+pandas
+matplotlib
+PyQt6
+torch
+requests
+python-dotenv
+pytest
