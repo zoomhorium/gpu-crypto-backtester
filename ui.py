@@ -1,9 +1,16 @@
 import sys
 from main import pipeline
 from PyQt6.QtCore import QSize, Qt
-from PyQt6.QtWidgets import QApplication, QMessageBox, QMainWindow,QProgressBar, QPushButton,QDialog, QLineEdit,QLabel,QWidget,QVBoxLayout,QHBoxLayout,QComboBox
+from PyQt6.QtWidgets import QDockWidget,QApplication, QMessageBox, QMainWindow,QProgressBar, QPushButton,QDialog, QLineEdit,QLabel,QWidget,QVBoxLayout,QHBoxLayout,QComboBox
 from models import Ranges,NoSurvivorsError
 from PyQt6.QtCore import QThread, pyqtSignal
+from matplotlib.backends.backend_qtagg import FigureCanvas
+from matplotlib.backends.backend_qtagg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.figure import Figure
+from graph import graph
+from graph import build_grid
+from paths import DATA_DIR
+import numpy as np
 # Subclass QMainWindow to customize your application's main window
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -11,6 +18,10 @@ class MainWindow(QMainWindow):
 
         self.full_window = FullWindow()
         self.setCentralWidget(self.full_window)
+        self.dock=QDockWidget('Graph')
+        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.dock)
+        graphs=GraphWindow()
+        self.dock.setWidget(graphs)
         
 class FullWindow(QWidget):
     def __init__(self):
@@ -260,11 +271,21 @@ class PipelineThread(QThread):
         except NoSurvivorsError as e:
             
             self.failed.emit( str(e)) 
-            
+class GraphWindow(QWidget):
+    def __init__(self):
+        super().__init__()
+        graph_canvas = FigureCanvas(Figure(figsize=(24, 14),layout="constrained"))
+        self.graph_layout=QVBoxLayout()
+        a = np.load(DATA_DIR / "round3_params.npy")
+        grid = build_grid(data=a,y_col=1,x_col=4,value_col=8)
+        self.cursor, axes =     graph(fig=graph_canvas.figure, grid=grid,y_label= "n", x_label="bar")   
+        self.graph_layout.addWidget(NavigationToolbar(graph_canvas, self))
+        self.graph_layout.addWidget(graph_canvas)
+        self.setLayout(self.graph_layout)
+if __name__ == "__main__":       
+    app = QApplication(sys.argv)
 
-app = QApplication(sys.argv)
+    window = MainWindow()
+    window.show()
 
-window = MainWindow()
-window.show()
-
-app.exec()
+    app.exec()
