@@ -15,9 +15,12 @@ import numpy as np
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-
+        
         self.full_window = FullWindow()
+        self.full_window.button.clicked.connect(self.add_graph)
         self.setCentralWidget(self.full_window)
+
+    def add_graph(self):
         self.dock=QDockWidget('Graph')
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.dock)
         graphs=GraphWindow()
@@ -32,7 +35,12 @@ class FullWindow(QWidget):
         
         layout.addWidget(self.choise_window)
         layout.addWidget(self.submit_window)
+        self.button = QPushButton("NEW GRAPH")
+        
+        
+        layout.addWidget(self.button)
         self.setLayout(layout)
+
 class ChoiseWindow(QWidget):
     def __init__(self, submit_window):
         
@@ -281,7 +289,7 @@ class GraphWindow(QWidget):
         self.cursor, axes =     graph(fig=graph_canvas.figure, grid=grid,y_label= "n", x_label="bar")   
         self.graph_layout.addWidget(NavigationToolbar(graph_canvas, self))
         self.graph_layout.addWidget(graph_canvas)
-        self.setLayout(self.graph_layout)
+        self.setLayout(self.graph_layout)   
 if __name__ == "__main__":       
     app = QApplication(sys.argv)
 
