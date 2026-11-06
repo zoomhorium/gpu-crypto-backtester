@@ -1,6 +1,6 @@
 import sys
 from main import pipeline
-from PyQt6.QtCore import QSize, Qt
+from PyQt6.QtCore import QSize, Qt, QTimer
 from PyQt6.QtWidgets import QDockWidget,QApplication, QMessageBox, QMainWindow,QProgressBar, QPushButton,QDialog, QLineEdit,QLabel,QWidget,QVBoxLayout,QHBoxLayout,QComboBox
 from models import Ranges,NoSurvivorsError
 from PyQt6.QtCore import QThread, pyqtSignal
@@ -15,16 +15,25 @@ import numpy as np
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        
+        self.dock = None
         self.full_window = FullWindow()
         self.full_window.button.clicked.connect(self.add_graph)
         self.setCentralWidget(self.full_window)
 
     def add_graph(self):
+        
+        first=self.dock
         self.dock=QDockWidget('Graph')
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.dock)
+                    
         graphs=GraphWindow()
-        self.dock.setWidget(graphs)
+        second=self.dock
+        self.dock.setWidget(graphs) 
+        
+        if first is not None:
+            
+            self.tabifyDockWidget(first,second)
+            QTimer.singleShot(0, second.raise_)
         
 class FullWindow(QWidget):
     def __init__(self):
