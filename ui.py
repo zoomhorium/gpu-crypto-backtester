@@ -21,24 +21,33 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.full_window)
         
     def add_graph(self):
-        
-        self.full_window.button.setEnabled(False)
-        first=self.dock
-        self.dock=QDockWidget('Graph')
-        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.dock)
-                    
-        graphs=GraphWindow()
-        self.grid_pipeline_thread = GridBuildingThread()
-        self.grid_pipeline_thread.finished_ok.connect(graphs.on_grid_pipeline_done)
-        self.grid_pipeline_thread.finished_ok.connect(self.set_button_enabled)
-        self.grid_pipeline_thread.start()        
-        second=self.dock
-        self.dock.setWidget(graphs) 
-        
-        if first is not None:
+        if self.full_window.x_axis.currentIndex()==self.full_window.y_axis.currentIndex():
+            QMessageBox.warning(self, "Invalid input",
+                            f"Invalid input, choose 2 different values")
+            return    
+        else:    
+            x_axis_text=self.full_window.x_axis.currentText()
+            x_axis_index= self.full_window.x_axis.currentIndex()+1
+
+            y_axis_text=self.full_window.y_axis.currentText()
+            y_axis_index= self.full_window.y_axis.currentIndex()+1
+            self.full_window.button.setEnabled(False)
+            first=self.dock
+            self.dock=QDockWidget(f"{x_axis_text} vs {y_axis_text}")
+            self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.dock)
+                        
+            graphs=GraphWindow(x_axis_text,y_axis_text)
+            self.grid_pipeline_thread = GridBuildingThread(x_axis_index,y_axis_index)
+            self.grid_pipeline_thread.finished_ok.connect(graphs.on_grid_pipeline_done)
+            self.grid_pipeline_thread.finished_ok.connect(self.set_button_enabled)
+            self.grid_pipeline_thread.start()        
+            second=self.dock
+            self.dock.setWidget(graphs) 
             
-            self.tabifyDockWidget(first,second)
-            QTimer.singleShot(0, second.raise_)
+            if first is not None:
+                
+                self.tabifyDockWidget(first,second)
+                QTimer.singleShot(0, second.raise_)
     def set_button_enabled(self):
         self.full_window.button.setEnabled(True) 
         
@@ -52,9 +61,20 @@ class FullWindow(QWidget):
         
         layout.addWidget(self.choise_window)
         layout.addWidget(self.submit_window)
+        
+        self.x_axis = QComboBox()
+        self.y_axis = QComboBox()
+        self.x_lable=QLabel("x =")
+        self.y_lable=QLabel("y =")
+        self.x_axis.addItems(["N","LONG","SHORT","BAR","STOP","TAKE","LEVERAGE"])
+        self.y_axis.addItems(["N","LONG","SHORT","BAR","STOP","TAKE","LEVERAGE"])
         self.button = QPushButton("NEW GRAPH")
-        
-        
+        self.x_axis.setCurrentIndex(3)
+        self.y_axis.setCurrentIndex(0)
+        layout.addWidget(self.x_lable)
+        layout.addWidget(self.x_axis)
+        layout.addWidget(self.y_lable)
+        layout.addWidget(self.y_axis)
         layout.addWidget(self.button)
         self.setLayout(layout)
 
@@ -297,12 +317,16 @@ class PipelineThread(QThread):
             
             self.failed.emit( str(e)) 
 class GraphWindow(QWidget):
-    
-        
+    def __init__(self, x_axis_text,y_axis_text):
+            super().__init__()    
+            
+            self.x_axis_text=x_axis_text
+            
+            self.y_axis_text=y_axis_text
     def on_grid_pipeline_done(self,grid):
         graph_canvas = FigureCanvas(Figure(figsize=(24, 14),layout="constrained"))
         self.graph_layout=QVBoxLayout()       
-        self.cursor, axes =     graph(fig=graph_canvas.figure, grid=grid,y_label= "n", x_label="bar")   
+        self.cursor, axes =     graph(fig=graph_canvas.figure, grid=grid,y_label= self.y_axis_text, x_label=self.x_axis_text)   
         self.graph_layout.addWidget(NavigationToolbar(graph_canvas, self))
         self.graph_layout.addWidget(graph_canvas)
         self.setLayout(self.graph_layout)  
@@ -311,10 +335,15 @@ class GridBuildingThread(QThread):
     finished_ok = pyqtSignal(object)   # custom signals: CLASS attributes,
     failed      = pyqtSignal(str)      # typed by payload
     
-    
+    def __init__(self, x_axis_index,y_axis_index):
+                super().__init__()    
+                
+                self.x_axis_index=x_axis_index
+                
+                self.y_axis_index=y_axis_index
     def run(self):
         a = np.load(DATA_DIR / "round3_params.npy")
-        grid = build_grid(data=a,y_col=1,x_col=4,value_col=8)
+        grid = build_grid(data=a,y_col=self.y_axis_index,x_col=self.x_axis_index,value_col=8)
         
         self.finished_ok.emit(grid)
     
