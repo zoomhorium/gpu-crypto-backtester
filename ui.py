@@ -19,14 +19,19 @@ class MainWindow(QMainWindow):
         self.full_window = FullWindow()
         self.full_window.button.clicked.connect(self.add_graph)
         self.setCentralWidget(self.full_window)
-
+        
     def add_graph(self):
         
+        self.full_window.button.setEnabled(False)
         first=self.dock
         self.dock=QDockWidget('Graph')
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.dock)
                     
         graphs=GraphWindow()
+        self.grid_pipeline_thread = GridBuildingThread()
+        self.grid_pipeline_thread.finished_ok.connect(graphs.on_grid_pipeline_done)
+        self.grid_pipeline_thread.finished_ok.connect(self.set_button_enabled)
+        self.grid_pipeline_thread.start()        
         second=self.dock
         self.dock.setWidget(graphs) 
         
@@ -34,6 +39,9 @@ class MainWindow(QMainWindow):
             
             self.tabifyDockWidget(first,second)
             QTimer.singleShot(0, second.raise_)
+    def set_button_enabled(self):
+        self.full_window.button.setEnabled(True) 
+        
         
 class FullWindow(QWidget):
     def __init__(self):
@@ -289,16 +297,27 @@ class PipelineThread(QThread):
             
             self.failed.emit( str(e)) 
 class GraphWindow(QWidget):
-    def __init__(self):
-        super().__init__()
+    
+        
+    def on_grid_pipeline_done(self,grid):
         graph_canvas = FigureCanvas(Figure(figsize=(24, 14),layout="constrained"))
-        self.graph_layout=QVBoxLayout()
-        a = np.load(DATA_DIR / "round3_params.npy")
-        grid = build_grid(data=a,y_col=1,x_col=4,value_col=8)
+        self.graph_layout=QVBoxLayout()       
         self.cursor, axes =     graph(fig=graph_canvas.figure, grid=grid,y_label= "n", x_label="bar")   
         self.graph_layout.addWidget(NavigationToolbar(graph_canvas, self))
         self.graph_layout.addWidget(graph_canvas)
-        self.setLayout(self.graph_layout)   
+        self.setLayout(self.graph_layout)  
+        
+class GridBuildingThread(QThread):
+    finished_ok = pyqtSignal(object)   # custom signals: CLASS attributes,
+    failed      = pyqtSignal(str)      # typed by payload
+    
+    
+    def run(self):
+        a = np.load(DATA_DIR / "round3_params.npy")
+        grid = build_grid(data=a,y_col=1,x_col=4,value_col=8)
+        
+        self.finished_ok.emit(grid)
+    
 if __name__ == "__main__":       
     app = QApplication(sys.argv)
 
