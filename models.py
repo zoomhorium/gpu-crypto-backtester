@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import numpy as np
 import cupy as cp
 from typing import Iterable
+axis_names = {"N":1,"LONG":2,"SHORT":3,"BAR":4,"STOP":5,"TAKE":6,"LEVERAGE":7}
 @dataclass
 class Grid:
     y_values: range

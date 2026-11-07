@@ -2,7 +2,7 @@ import sys
 from main import pipeline
 from PyQt6.QtCore import QSize, Qt, QTimer
 from PyQt6.QtWidgets import QDockWidget,QApplication, QMessageBox, QMainWindow,QProgressBar, QPushButton,QDialog, QLineEdit,QLabel,QWidget,QVBoxLayout,QHBoxLayout,QComboBox
-from models import Ranges,NoSurvivorsError
+from models import Ranges,NoSurvivorsError,axis_names
 from PyQt6.QtCore import QThread, pyqtSignal
 from matplotlib.backends.backend_qtagg import FigureCanvas
 from matplotlib.backends.backend_qtagg import NavigationToolbar2QT as NavigationToolbar
@@ -21,23 +21,23 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.full_window)
         
     def add_graph(self):
-        if self.full_window.x_axis.currentIndex()==self.full_window.y_axis.currentIndex():
+        if self.full_window.x_axis.currentText()==self.full_window.y_axis.currentText():
             QMessageBox.warning(self, "Invalid input",
                             f"Invalid input, choose 2 different values")
             return    
         else:    
             x_axis_text=self.full_window.x_axis.currentText()
-            x_axis_index= self.full_window.x_axis.currentIndex()+1
+            x_col= axis_names[x_axis_text]
 
             y_axis_text=self.full_window.y_axis.currentText()
-            y_axis_index= self.full_window.y_axis.currentIndex()+1
+            y_col= axis_names[y_axis_text]
             self.full_window.button.setEnabled(False)
             first=self.dock
             self.dock=QDockWidget(f"{x_axis_text} vs {y_axis_text}")
             self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.dock)
                         
             graphs=GraphWindow(x_axis_text,y_axis_text)
-            self.grid_pipeline_thread = GridBuildingThread(x_axis_index,y_axis_index)
+            self.grid_pipeline_thread = GridBuildingThread(x_col,y_col)
             self.grid_pipeline_thread.finished_ok.connect(graphs.on_grid_pipeline_done)
             self.grid_pipeline_thread.finished_ok.connect(self.set_button_enabled)
             self.grid_pipeline_thread.start()        
@@ -66,11 +66,11 @@ class FullWindow(QWidget):
         self.y_axis = QComboBox()
         self.x_lable=QLabel("x =")
         self.y_lable=QLabel("y =")
-        self.x_axis.addItems(["N","LONG","SHORT","BAR","STOP","TAKE","LEVERAGE"])
-        self.y_axis.addItems(["N","LONG","SHORT","BAR","STOP","TAKE","LEVERAGE"])
+        self.x_axis.addItems(axis_names.keys())
+        self.y_axis.addItems(axis_names.keys())
         self.button = QPushButton("NEW GRAPH")
-        self.x_axis.setCurrentIndex(3)
-        self.y_axis.setCurrentIndex(0)
+        self.x_axis.setCurrentText("BAR")
+        self.y_axis.setCurrentText("N")
         layout.addWidget(self.x_lable)
         layout.addWidget(self.x_axis)
         layout.addWidget(self.y_lable)
