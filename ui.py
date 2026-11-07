@@ -40,6 +40,7 @@ class MainWindow(QMainWindow):
             self.grid_pipeline_thread = GridBuildingThread(x_col,y_col)
             self.grid_pipeline_thread.finished_ok.connect(graphs.on_grid_pipeline_done)
             self.grid_pipeline_thread.finished_ok.connect(self.set_button_enabled)
+            self.grid_pipeline_thread.failed.connect(self.grid_pipeline_failed)
             self.grid_pipeline_thread.start()        
             second=self.dock
             self.dock.setWidget(graphs) 
@@ -50,7 +51,12 @@ class MainWindow(QMainWindow):
                 QTimer.singleShot(0, second.raise_)
     def set_button_enabled(self):
         self.full_window.button.setEnabled(True) 
-        
+    def grid_pipeline_failed(self, message):
+        QMessageBox.warning(self, "Data error",
+                                    f"{message}")
+        self.dock.close()
+        self.full_window.button.setEnabled(True)     
+
         
 class FullWindow(QWidget):
     def __init__(self):
@@ -342,10 +348,13 @@ class GridBuildingThread(QThread):
                 
                 self.y_axis_index=y_axis_index
     def run(self):
-        a = np.load(DATA_DIR / "round3_params.npy")
-        grid = build_grid(data=a,y_col=self.y_axis_index,x_col=self.x_axis_index,value_col=8)
-        
-        self.finished_ok.emit(grid)
+        try:
+            a = np.load(DATA_DIR / "round3_params.npy")
+            grid = build_grid(data=a,y_col=self.y_axis_index,x_col=self.x_axis_index,value_col=8)
+            
+            self.finished_ok.emit(grid)
+        except Exception as e:
+            self.failed.emit( str(e)) 
     
 if __name__ == "__main__":       
     app = QApplication(sys.argv)
