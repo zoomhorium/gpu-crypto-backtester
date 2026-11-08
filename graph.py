@@ -105,9 +105,15 @@ class Panel:
 def build_grid(data, y_col, x_col, value_col, y_values=None, x_values=None, lower_limit=100, upper_limit=500,balance_col=0):
 
     if y_values is None:
-        y_values=range(int(np.min(np.unique(data[:,y_col]))),int(np.max(np.unique(data[:,y_col])))+1 )
+        step_y=np.gcd.reduce(np.nan_to_num(np.diff(np.unique(data[:, y_col])), nan=0).astype(np.int32))
+        if step_y==0:
+            step_y=1
+        y_values=range(int(np.min(np.unique(data[:,y_col]))),int(np.max(np.unique(data[:,y_col])))+1,step_y) 
     if x_values is None:
-        x_values=range(int(np.min(np.unique(data[:,x_col]))),int(np.max(np.unique(data[:,x_col])))+1)
+        step_x=np.gcd.reduce(np.nan_to_num(np.diff(np.unique(data[:, x_col])), nan=0).astype(np.int32))
+        if step_x==0:
+            step_x=1
+        x_values=range(int(np.min(np.unique(data[:,x_col]))),int(np.max(np.unique(data[:,x_col])))+1,step_x)
     medians = np.full(( len(y_values),len(x_values)), np.nan)
     counts  = np.zeros(( len(y_values),len(x_values)), dtype=int)
     capped_sum  = np.zeros(( len(y_values),len(x_values)), dtype=float)
@@ -135,13 +141,13 @@ def build_grid(data, y_col, x_col, value_col, y_values=None, x_values=None, lowe
 
 def draw_grid_pair(axes, grid, y_label, x_label,cmap_a,cmap_b,cmap_c,cmap_e,cmap_d,cmap_f,vcenter=100, thin_below=100):
     def format_coord_custom(x, y):
-        if x<-0.5 or y<-0.5 or np.max(grid.y_values)-np.min(grid.y_values)+0.5<=y or np.max(grid.x_values)-np.min(grid.x_values)+0.5<=x:
+        if x<-0.5 or y<-0.5 or len(grid.y_values) - 0.5<=y or len(grid.x_values) - 0.5<=x:
             return "Too far"
         value_str = ""
         for panel in panels:
             value_str=value_str+panel.title+" = "+f"{panel.values[math.floor(y + 0.5)][math.floor(x + 0.5)].item():0.5g} "+"   "
         
-        return f'{x_label}={math.floor((x+0.5))+np.min(np.unique(grid.x_values))}, {y_label}={math.floor((y+0.5))+np.min(np.unique(grid.y_values))}'+'\n' + value_str
+        return f'{x_label}={grid.x_values[math.floor((x+0.5))]}, {y_label}={grid.y_values[math.floor((y+0.5))]}'+'\n' + value_str
     
     
     panels = []
@@ -220,15 +226,24 @@ def graph(fig,grid,y_label, x_label):
     return cursor,axes
 if __name__ == "__main__":
     fig = plt.figure(figsize=(24, 14), layout="constrained") 
-
+    fig2= plt.figure(figsize=(24, 14), layout="constrained") 
+    fig3 =plt.figure(figsize=(24, 14), layout="constrained")
+    
     a = np.load(DATA_DIR / "round3_params.npy")
+    b= a[a[:, 7] == 3]
+    data = np.zeros((3, 9), dtype=np.float32)   # 3 rows, 9 columns, all 0
+    data[:, 7] = [7, 12, 17]                    # Y parameter: one value per row
+    data[:, 4] = [2, 2, 2]                       # X parameter
+    data[:, 8] = [120, 80, 150]                  # the value
+    data[:, 0] = 100   
     grid = build_grid(data=a,y_col=1,x_col=4,value_col=8)
     cursor,axes=graph( fig=fig,grid=grid,y_label= "n", x_label="bar")
-
-
-    
-
-    
+    grid_l= build_grid(data=a,y_col=7,x_col=5,value_col=8)
+    cursor_l,axes_l=graph( fig=fig2,grid=grid_l,y_label= "leverage", x_label="stop")
+    grid_o=build_grid(data=b,y_col=7,x_col=5,value_col=8)
+    cursor_0,axes_0=graph( fig=fig3,grid=grid_o,y_label= "leverage", x_label="stop")
+    grid_m=build_grid(data=data,y_col=7,x_col=4,value_col=8)
+   
     
 
    
@@ -250,12 +265,15 @@ if __name__ == "__main__":
     print(np.corrcoef(np.log(grid.counts[ok]), np.log(grid.spread[ok]))[0, 1])
 
     fig.savefig(BASE_DIR / "bar_n_heatmap.png", dpi=150)
-
+   
+    fco=axes_0[0][0].format_coord
+    fcs= axes_l[0][0].format_coord
     fc = axes[0][0].format_coord
     x_edge = len(grid.x_values) - 0.5          # where the last column ends
     y_edge = len(grid.y_values) - 0.5          # where the last row ends
     first_bar, last_bar = grid.x_values[0], grid.x_values[-1]
     first_n, last_n = grid.y_values[0], grid.y_values[-1]
+    last_bar_s, first_n_s = grid_l.x_values[-1], grid_l.y_values[0]
     assert axes[0][0].format_coord(np.max(grid.x_values)-np.min(grid.x_values), np.max(grid.y_values)-np.min(grid.y_values)).split("\n")[0]==f'bar={np.max(grid.x_values)}, n={(np.max(grid.y_values))}',"Wrong max"
     assert "COUNT = 497 " in fc(22, 0), "Wrong COUNT"
     assert axes[0][0].format_coord(0, 0).split("\n")[0]==f'bar={np.min(grid.x_values)}, n={(np.min(grid.y_values))}',"Wrong min "
@@ -267,5 +285,10 @@ if __name__ == "__main__":
     assert fc(0, y_edge) == "Too far", "Last row, on the edge"
     assert fc(0, -0.5).split("\n")[0] == f"bar={first_bar}, n={first_n}", "First row, on the edge"
     assert fc(0, -0.51) == "Too far", "First row, just outside"
+    assert fcs(len(grid_l.x_values) - 0.5 - 0.01, 0).split("\n")[0] == f"stop={last_bar_s}, leverage={first_n_s}", "Last column, just inside"
+    assert fcs(len(grid_l.x_values) - 0.5, 0) == "Too far", "Last column, on the edge"
+    assert grid_m.y_values==range(7,18,5),"Wrong step"
+    assert fco(0, 0).split("\n")[0]==f"stop={grid_o.x_values[0]}, leverage=3","Wrong value"
+    assert list(grid_o.y_values)==[3],"Must be 3"
     print(np.nanmin(grid.drawdown), np.nanmax(grid.drawdown))
     plt.show()
