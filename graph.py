@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 from matplotlib.colors import TwoSlopeNorm
 from matplotlib.patches import Rectangle
-import time
+
 import matplotlib
 
 from models import Grid
@@ -151,43 +151,6 @@ def build_grid(data, y_col, x_col, value_col,  lower_limit=100, upper_limit=500,
         
 
     return Grid(y_values=y_values, x_values=x_values, medians=medians, counts=counts , capped_sum=capped_sum ,p10=p10 ,p90=p90 , spread=spread,drawdown = drawdown)
-def build_grid_slow(data, y_col, x_col, value_col, y_values=None, x_values=None, lower_limit=100, upper_limit=500,balance_col=0):
-
-    if y_values is None:
-        step_y=np.gcd.reduce(np.nan_to_num(np.diff(np.unique(data[:, y_col])), nan=0).astype(np.int32))
-        if step_y==0:
-            step_y=1
-        y_values=range(int(np.min(np.unique(data[:,y_col]))),int(np.max(np.unique(data[:,y_col])))+1,step_y) 
-    if x_values is None:
-        step_x=np.gcd.reduce(np.nan_to_num(np.diff(np.unique(data[:, x_col])), nan=0).astype(np.int32))
-        if step_x==0:
-            step_x=1
-        x_values=range(int(np.min(np.unique(data[:,x_col]))),int(np.max(np.unique(data[:,x_col])))+1,step_x)
-    medians = np.full(( len(y_values),len(x_values)), np.nan)
-    counts  = np.zeros(( len(y_values),len(x_values)), dtype=int)
-    capped_sum  = np.zeros(( len(y_values),len(x_values)), dtype=float)
-    p10 = np.full(( len(y_values),len(x_values)), np.nan) 
-    p90 = np.full(( len(y_values),len(x_values)), np.nan)
-    spread = np.zeros(( len(y_values),len(x_values)), dtype=float)
-    drawdown = np.full(( len(y_values),len(x_values)), np.nan)
-    
-    for i, y in enumerate(y_values):
-
-        for j, x in enumerate(x_values):
-            mask = (data[:, y_col] == y) & (data[:, x_col] == x)
-            counts[i, j] = mask.sum()
-            if counts[i, j]:
-                medians[i, j] = np.median(data[mask, value_col])
-                drawdown[i,j] = np.median(1 - data[mask, value_col] / data[mask, balance_col])
-                p10[i, j],p90[i, j] = np.percentile(data[mask, value_col],[10,90])
-                spread[i,j] =( p90[i, j]- p10[i, j])/medians[i, j]
-                norm_data = (data[mask, value_col] - lower_limit) / (upper_limit - lower_limit)
-
-
-                capped_sum[i,j] = np.sum(np.clip(norm_data, 0, 1))
-        
-
-    return Grid(y_values=y_values, x_values=x_values, medians=medians, counts=counts , capped_sum=capped_sum ,p10=p10 ,p90=p90 , spread=spread,drawdown = drawdown)
 
 def draw_grid_pair(axes, grid, y_label, x_label,cmap_a,cmap_b,cmap_c,cmap_e,cmap_d,cmap_f,vcenter=100, thin_below=100):
     def format_coord_custom(x, y):
@@ -274,44 +237,11 @@ def graph(fig,grid,y_label, x_label):
     draw_grid_pair(axes,  grid, y_label, x_label,cmap_a,cmap_b,cmap_c,cmap_e,cmap_d ,cmap_f)
     fig.canvas.mpl_connect('motion_notify_event', cursor.on_mouse_move)
     return cursor,axes
-def same(g1, g2):
-    return (g1.y_values == g2.y_values
-            and g1.x_values == g2.x_values
-            and np.array_equal(g1.counts, g2.counts)
-            and np.allclose(g1.medians, g2.medians, equal_nan=True)
-            and np.allclose(g1.capped_sum, g2.capped_sum, equal_nan=True)
-            and np.allclose(g1.p10, g2.p10, equal_nan=True)
-            and np.allclose(g1.p90, g2.p90, equal_nan=True)
-            and np.allclose(g1.spread, g2.spread, equal_nan=True)
-            and np.allclose(g1.drawdown, g2.drawdown, equal_nan=True))
+
 if __name__ == "__main__":
-    a = np.load(DATA_DIR / "round3_params.npy")
+    
 
-    t0 = time.perf_counter()
-    fast = build_grid(data=a, y_col=1, x_col=4, value_col=8)
-    fast_time = time.perf_counter() - t0
-
-    t0 = time.perf_counter()
-    slow = build_grid_slow(data=a, y_col=1, x_col=4, value_col=8)
-    slow_time = time.perf_counter() - t0
-
-    levstop_f=build_grid(data=a, y_col=7, x_col=5, value_col=8)
-    levstop_s=build_grid_slow(data=a, y_col=7, x_col=5, value_col=8)
-    print(f"levarage x stop: same={same(levstop_f, levstop_s)}")
-
-    t0 = time.perf_counter()
-    longshort_f = build_grid(data=a, y_col=2, x_col=3, value_col=8)
-    t_fast = time.perf_counter() - t0
-
-    print("long x short, slow: running (about 5-6 min)...")
-    t0 = time.perf_counter()
-    longshort_s = build_grid_slow(data=a, y_col=2, x_col=3, value_col=8)
-    t_slow = time.perf_counter() - t0
-
-    print(f"long x short: same={same(longshort_f, longshort_s)}, fast {t_fast:.2f} s, slow {t_slow:.2f} s")
-
-
-    print(f"n x bar: same={same(fast, slow)}, fast {fast_time:.2f} s, slow {slow_time:.2f} s")
+    
     fig = plt.figure(figsize=(24, 14), layout="constrained") 
     fig2= plt.figure(figsize=(24, 14), layout="constrained") 
     fig3 =plt.figure(figsize=(24, 14), layout="constrained")
