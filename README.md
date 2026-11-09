@@ -29,7 +29,7 @@ python -m pip install -r requirements.txt
 Then, in this folder:
 
 - `python main.py` downloads BTC/USDT 15-minute candles from Binance, runs the three search rounds on the GPU, saves the survivors in `data/` and checks them on 2024–25. This takes hours and a lot of disk space.
-- `python ui.py` does the same, with parameter ranges you enter in a window.
+- `python ui.py` does the same, with parameter ranges you enter in a window. The NEW GRAPH button draws the six heatmaps from `data/round3_params.npy` in a new tab. You choose the two parameters in the drop-down menus. If `data/round3_params.npy` doesn't exist, an error message appears.
 - `python graph.py` draws the six heatmaps from `data/round3_params.npy`.
 - `python -m pytest` runs the tests.
 
@@ -37,4 +37,4 @@ No API key is needed: the candles come from Binance's public API.
 
 ## Next
 
-A full UI and new strategies.
+New strategies, with a rework of backtest_kernal.cu.
