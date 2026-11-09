@@ -1,6 +1,6 @@
 import numpy as np
-from pathlib import Path
-DATA_DIR = Path(__file__).resolve().parent
+from paths import DATA_DIR
+
 array   =   np.load(DATA_DIR / "round3_params.npy")
 print(array.shape)
 print(array.size)
