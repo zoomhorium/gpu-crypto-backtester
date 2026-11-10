@@ -37,4 +37,4 @@ No API key is needed: the candles come from Binance's public API.
 
 ## Next
 
-New strategies, with a rework of backtest_kernal.cu.
+New strategies, with a rework of backtest_kernel.cu.
