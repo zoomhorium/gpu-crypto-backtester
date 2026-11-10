@@ -1,7 +1,7 @@
 import sys
 from main import pipeline
-from PyQt6.QtCore import QSize, Qt, QTimer
-from PyQt6.QtWidgets import QDockWidget,QApplication, QMessageBox, QMainWindow,QProgressBar, QPushButton,QDialog, QLineEdit,QLabel,QWidget,QVBoxLayout,QHBoxLayout,QComboBox
+from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtWidgets import QDockWidget,QApplication, QMessageBox, QMainWindow,QProgressBar, QPushButton, QLineEdit,QLabel,QWidget,QVBoxLayout,QHBoxLayout,QComboBox
 from models import Ranges,NoSurvivorsError,axis_names
 from PyQt6.QtCore import QThread, pyqtSignal
 from matplotlib.backends.backend_qtagg import FigureCanvas
@@ -9,8 +9,8 @@ from matplotlib.backends.backend_qtagg import NavigationToolbar2QT as Navigation
 from matplotlib.figure import Figure
 from graph import graph
 from graph import build_grid
-from paths import DATA_DIR
 import numpy as np
+from paths import ROUND3_PATH
 # Subclass QMainWindow to customize your application's main window
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -19,74 +19,73 @@ class MainWindow(QMainWindow):
         self.full_window = FullWindow()
         self.full_window.button.clicked.connect(self.add_graph)
         self.setCentralWidget(self.full_window)
-        
+
     def add_graph(self):
         if self.full_window.x_axis.currentText()==self.full_window.y_axis.currentText():
             QMessageBox.warning(self, "Invalid input",
-                            f"Invalid input, choose 2 different values")
-            return    
-        else:    
-            x_axis_text=self.full_window.x_axis.currentText()
-            x_col= axis_names[x_axis_text]
+                            "Invalid input, choose 2 different values")
+            return
 
-            y_axis_text=self.full_window.y_axis.currentText()
-            y_col= axis_names[y_axis_text]
-            self.full_window.button.setEnabled(False)
-            first=self.dock
-            self.dock=QDockWidget(f"{x_axis_text} vs {y_axis_text}")
-            self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.dock)
-                        
-            graphs=GraphWindow(x_axis_text,y_axis_text)
-            self.grid_pipeline_thread = GridBuildingThread(x_col,y_col)
-            self.grid_pipeline_thread.finished_ok.connect(graphs.on_grid_pipeline_done)
-            self.grid_pipeline_thread.finished_ok.connect(self.set_button_enabled)
-            self.grid_pipeline_thread.failed.connect(self.grid_pipeline_failed)
-            self.grid_pipeline_thread.start()        
-            second=self.dock
-            self.dock.setWidget(graphs) 
-            
-            if first is not None:
-                
-                self.tabifyDockWidget(first,second)
-                QTimer.singleShot(0, second.raise_)
+        x_axis_text=self.full_window.x_axis.currentText()
+        x_col= axis_names[x_axis_text]
+
+        y_axis_text=self.full_window.y_axis.currentText()
+        y_col= axis_names[y_axis_text]
+
+        self.full_window.button.setEnabled(False)
+        first=self.dock
+        self.dock=QDockWidget(f"{y_axis_text} vs {x_axis_text}")
+        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.dock)
+
+        graphs=GraphWindow(x_axis_text,y_axis_text)
+        self.grid_pipeline_thread = GridBuildingThread(x_col,y_col)
+        self.grid_pipeline_thread.finished_ok.connect(graphs.on_grid_pipeline_done)
+        self.grid_pipeline_thread.finished_ok.connect(self.set_button_enabled)
+        self.grid_pipeline_thread.failed.connect(self.grid_pipeline_failed)
+        self.grid_pipeline_thread.start()
+        second=self.dock
+        self.dock.setWidget(graphs)
+
+        if first is not None:
+
+            self.tabifyDockWidget(first,second)
+            QTimer.singleShot(0, second.raise_)
     def set_button_enabled(self):
-        self.full_window.button.setEnabled(True) 
+        self.full_window.button.setEnabled(True)
     def grid_pipeline_failed(self, message):
         QMessageBox.warning(self, "Data error",
-                                    f"{message}")
+                                    message)
         self.dock.close()
-        self.full_window.button.setEnabled(True)     
+        self.full_window.button.setEnabled(True)
 
-        
+
 class FullWindow(QWidget):
     def __init__(self):
         super().__init__()
         layout = QHBoxLayout()
         self.submit_window = SubmitWindow()
-        self.choise_window = ChoiseWindow(self.submit_window)
-        
-        layout.addWidget(self.choise_window)
+        self.choice_window = ChoiceWindow(self.submit_window)
+        layout.addWidget(self.choice_window)
         layout.addWidget(self.submit_window)
-        
         self.x_axis = QComboBox()
         self.y_axis = QComboBox()
-        self.x_lable=QLabel("x =")
-        self.y_lable=QLabel("y =")
+        self.x_label=QLabel("x =")
+        self.y_label=QLabel("y =")
         self.x_axis.addItems(axis_names.keys())
         self.y_axis.addItems(axis_names.keys())
         self.button = QPushButton("NEW GRAPH")
         self.x_axis.setCurrentText("BAR")
         self.y_axis.setCurrentText("N")
-        layout.addWidget(self.x_lable)
+        layout.addWidget(self.x_label)
         layout.addWidget(self.x_axis)
-        layout.addWidget(self.y_lable)
+        layout.addWidget(self.y_label)
         layout.addWidget(self.y_axis)
         layout.addWidget(self.button)
         self.setLayout(layout)
 
-class ChoiseWindow(QWidget):
+class ChoiceWindow(QWidget):
     def __init__(self, submit_window):
-        
+
         super().__init__()
         self.submit_window = submit_window
         layout = QVBoxLayout()
@@ -101,12 +100,9 @@ class ChoiseWindow(QWidget):
 class SubmitWindow(QWidget):
     def __init__(self):
         super().__init__()
-        
         self.button = QPushButton("SUBMIT")
         self.button.clicked.connect(self.submit_the_data)
-        
         layout = QHBoxLayout()
-        
         self.sma_window=SMAWindow()
         self.order_block_window=OrderBlockWindow()
         self.order_block_window.hide()
@@ -114,18 +110,12 @@ class SubmitWindow(QWidget):
         layout.addWidget(self.sma_window)
         layout.addWidget(self.order_block_window)
         layout.addWidget(self.button)
-        
+
         self.setLayout(layout)
     def submit_the_data(self):
-        
         self.active_form.submit(self.button)
-        
-    
-        
-    
 
     def change_the_filling(self,i):
-        
         if (i==0):
             self.order_block_window.hide()
             self.sma_window.show()
@@ -134,8 +124,8 @@ class SubmitWindow(QWidget):
             self.order_block_window.show()
             self.active_form=self.order_block_window
             self.sma_window.hide()
-    
-    
+
+
 class SMAWindow (QWidget):
     def __init__(self):
         super().__init__()
@@ -143,32 +133,30 @@ class SMAWindow (QWidget):
         self.progress.setVisible(False)
         self.progress.setRange(0,10000)
         self.setWindowTitle("SMA")
-            
+
         self.bar_label = QLabel("BAR=")
         self.bar_range = QLineEdit()
         self.bar_range.setPlaceholderText("e.g. 20,40 or 20,40,5")
-        
+
         self.n_label = QLabel("N=")
         self.n_range = QLineEdit()
         self.n_range.setPlaceholderText("e.g. 20,40 or 20,40,5")
-        
+
         self.leverage_label = QLabel("LEVERAGE=")
         self.leverage_range = QLineEdit()
         self.leverage_range.setPlaceholderText("e.g. 20,40 or 20,40,5")
-        
+
         self.stop_label = QLabel("STOP=")
         self.stop_range = QLineEdit()
         self.stop_range.setPlaceholderText("e.g. 20,40 or 20,40,5(0.5%=5 in this)")
-        
+
         self.take_label = QLabel("TAKE=")
         self.take_range = QLineEdit()
         self.take_range.setPlaceholderText("e.g. 20,40 or 20,40,5 (0.5%=5 in this)")
-        
-        
-        
+
         self.long_window_label = QLabel("LONG WINDOW=")
         self.long_window_range = QLineEdit()
-        self.long_window_range.setPlaceholderText("e.g. 20,40 or 20,40,5")   
+        self.long_window_range.setPlaceholderText("e.g. 20,40 or 20,40,5")
         layout_sma=QVBoxLayout()
 
         layout_bar=QHBoxLayout()
@@ -194,7 +182,6 @@ class SMAWindow (QWidget):
         layout_leverage=QHBoxLayout()
         layout_leverage.addWidget(self.leverage_label)
         layout_leverage.addWidget(self.leverage_range)
-        
 
         layout_sma.addLayout(layout_bar)
         layout_sma.addLayout(layout_n)
@@ -203,7 +190,7 @@ class SMAWindow (QWidget):
         layout_sma.addLayout(layout_stop)
         layout_sma.addLayout(layout_leverage)
         layout_sma.addWidget(self.progress)
-        
+
         self.fields = {
             "BAR": self.bar_range,
             "N": self.n_range,
@@ -212,7 +199,7 @@ class SMAWindow (QWidget):
             "STOP": self.stop_range,
             "LEVERAGE": self.leverage_range
             }
-        
+
 
         self.setLayout(layout_sma)
     def get_values(self,edit_line):
@@ -226,24 +213,13 @@ class SMAWindow (QWidget):
             if len(split_text)==2:
                 range_var=range(int(split_text[0]),int(split_text[1]))
                 return range_var
-            else:
-                return None
-            
+            return None
         except ValueError:
-            
-            
-            
-            
             return None
         except IndexError:
-           
-           
             return None
-        
-        
-        
+
     def submit(self,button):
-        
         self.submit_button = button
         results={}
         errors=[]
@@ -253,24 +229,21 @@ class SMAWindow (QWidget):
                 errors.append(name)
             else:
                 results[name]=result
-            
-    
-            
+
         if errors :
             QMessageBox.warning(self, "Invalid input",
                 f"Invalid input in: {', '.join(errors)}\nExpected e.g. 20,40 or 20,40,5")
             return
-        else:
-            self.pipeline_thread = PipelineThread(results)
-            self.pipeline_thread.finished_ok.connect(self.on_pipeline_done)
-            self.pipeline_thread.failed.connect(self.on_pipeline_failed)
-            self.pipeline_thread.progress.connect(self.on_progress)
-            self.submit_button.setEnabled(False)
-            self.progress.setVisible(True)
-            
-            self.pipeline_thread.start()
-            print(results)
-            
+
+        self.pipeline_thread = PipelineThread(results)
+        self.pipeline_thread.finished_ok.connect(self.on_pipeline_done)
+        self.pipeline_thread.failed.connect(self.on_pipeline_failed)
+        self.pipeline_thread.progress.connect(self.on_progress)
+        self.submit_button.setEnabled(False)
+        self.progress.setVisible(True)
+        self.pipeline_thread.start()
+
+
     def on_progress(self,percent):
         self.progress.setValue(percent)
 
@@ -283,9 +256,9 @@ class SMAWindow (QWidget):
         self.submit_button.setEnabled(True)
         self.progress.setVisible(False)
         QMessageBox.warning(self, "No survivors",
-                f" {message}")
-            
-    
+                message)
+
+
 class OrderBlockWindow(QWidget):
     def __init__(self):
         super().__init__()
@@ -295,9 +268,9 @@ class OrderBlockWindow(QWidget):
         self.ob_layout.addWidget(self.text)
         self.setLayout(self.ob_layout)
     def get_values(self):
-            
-            adx=67
-            return adx
+
+        adx=67
+        return adx
     def submit(self,button):
         adx=self.get_values()
         print(adx)
@@ -315,51 +288,42 @@ class PipelineThread(QThread):
     def run(self):
         try:
             best_params=pipeline(Ranges(leverage=self.results["LEVERAGE"],stop=self.results["STOP"],take=self.results["TAKE"],n=self.results["N"],bar=self.results["BAR"],long_window=self.results["LONG_WINDOW"]),progress_callback=self.progress.emit)
-            
             self.finished_ok.emit(best_params)
 
-            
         except NoSurvivorsError as e:
-            
-            self.failed.emit( str(e)) 
+            self.failed.emit( str(e))
 class GraphWindow(QWidget):
     def __init__(self, x_axis_text,y_axis_text):
-            super().__init__()    
-            
-            self.x_axis_text=x_axis_text
-            
-            self.y_axis_text=y_axis_text
+        super().__init__()
+        self.x_axis_text=x_axis_text
+        self.y_axis_text=y_axis_text
+
     def on_grid_pipeline_done(self,grid):
         graph_canvas = FigureCanvas(Figure(figsize=(24, 14),layout="constrained"))
-        self.graph_layout=QVBoxLayout()       
-        self.cursor, axes =     graph(fig=graph_canvas.figure, grid=grid,y_label= self.y_axis_text, x_label=self.x_axis_text)   
+        self.graph_layout=QVBoxLayout()
+        self.cursor, axes =     graph(fig=graph_canvas.figure, grid=grid,y_label= self.y_axis_text, x_label=self.x_axis_text)
         self.graph_layout.addWidget(NavigationToolbar(graph_canvas, self))
         self.graph_layout.addWidget(graph_canvas)
-        self.setLayout(self.graph_layout)  
-        
+        self.setLayout(self.graph_layout)
+
 class GridBuildingThread(QThread):
     finished_ok = pyqtSignal(object)   # custom signals: CLASS attributes,
     failed      = pyqtSignal(str)      # typed by payload
-    
-    def __init__(self, x_axis_index,y_axis_index):
-                super().__init__()    
-                
-                self.x_axis_index=x_axis_index
-                
-                self.y_axis_index=y_axis_index
+
+    def __init__(self, x_col,y_col):
+        super().__init__()
+        self.x_col=x_col
+        self.y_col=y_col
     def run(self):
         try:
-            a = np.load(DATA_DIR / "round3_params.npy")
-            grid = build_grid(data=a,y_col=self.y_axis_index,x_col=self.x_axis_index,value_col=8)
-            
+            a = np.load(ROUND3_PATH)
+            grid = build_grid(data=a,y_col=self.y_col,x_col=self.x_col,value_col=8)
             self.finished_ok.emit(grid)
         except Exception as e:
-            self.failed.emit( str(e)) 
-    
-if __name__ == "__main__":       
-    app = QApplication(sys.argv)
+            self.failed.emit( str(e))
 
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
     window = MainWindow()
     window.show()
-
     app.exec()
