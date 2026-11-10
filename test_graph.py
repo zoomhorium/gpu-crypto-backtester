@@ -1,15 +1,13 @@
 import numpy as np
 from models import Grid
-
-
-from graph import build_grid
+from graph import build_grid,get_range
 def build_grid_slow(data, y_col, x_col, value_col, y_values=None, x_values=None, lower_limit=100, upper_limit=500,balance_col=0):
 
     if y_values is None:
         step_y=np.gcd.reduce(np.nan_to_num(np.diff(np.unique(data[:, y_col])), nan=0).astype(np.int32))
         if step_y==0:
             step_y=1
-        y_values=range(int(np.min(np.unique(data[:,y_col]))),int(np.max(np.unique(data[:,y_col])))+1,step_y) 
+        y_values=range(int(np.min(np.unique(data[:,y_col]))),int(np.max(np.unique(data[:,y_col])))+1,step_y)
     if x_values is None:
         step_x=np.gcd.reduce(np.nan_to_num(np.diff(np.unique(data[:, x_col])), nan=0).astype(np.int32))
         if step_x==0:
@@ -18,11 +16,11 @@ def build_grid_slow(data, y_col, x_col, value_col, y_values=None, x_values=None,
     medians = np.full(( len(y_values),len(x_values)), np.nan)
     counts  = np.zeros(( len(y_values),len(x_values)), dtype=int)
     capped_sum  = np.zeros(( len(y_values),len(x_values)), dtype=float)
-    p10 = np.full(( len(y_values),len(x_values)), np.nan) 
+    p10 = np.full(( len(y_values),len(x_values)), np.nan)
     p90 = np.full(( len(y_values),len(x_values)), np.nan)
     spread = np.zeros(( len(y_values),len(x_values)), dtype=float)
     drawdown = np.full(( len(y_values),len(x_values)), np.nan)
-    
+
     for i, y in enumerate(y_values):
 
         for j, x in enumerate(x_values):
@@ -37,7 +35,7 @@ def build_grid_slow(data, y_col, x_col, value_col, y_values=None, x_values=None,
 
 
                 capped_sum[i,j] = np.sum(np.clip(norm_data, 0, 1))
-        
+
 
     return Grid(y_values=y_values, x_values=x_values, medians=medians, counts=counts , capped_sum=capped_sum ,p10=p10 ,p90=p90 , spread=spread,drawdown = drawdown)
 def same(g1, g2):
@@ -50,8 +48,24 @@ def same(g1, g2):
             and np.allclose(g1.p90, g2.p90, equal_nan=True)
             and np.allclose(g1.spread, g2.spread, equal_nan=True)
             and np.allclose(g1.drawdown, g2.drawdown, equal_nan=True))
+def test_get_range():
+
+    n = 3000
+    rng = np.random.default_rng(0)
+    data = np.zeros((n, 9), dtype=np.float32)
+    data[:, 2] = rng.integers(6, 301, size=n)
+    range_f=get_range(data[:,2])
+    uniq=np.unique(data[:,2])
+    step=np.gcd.reduce(np.diff(uniq).astype(np.int32))
+    if step==0:
+        step=1
+    new_range=range(int(np.min(uniq)),int(np.max(uniq))+1,step)
+
+    assert get_range(np.array([7, 12, 17], dtype=np.float32)) == range(7, 18, 5), "get_range: the step must come from the gaps"
+    assert get_range(np.array([3, 3, 3], dtype=np.float32)) == range(3, 4), "get_range: a single value must give a step of 1"
+    assert new_range==range_f, "get_range function calculate different range from hand methood"
 def test_build_grid_matches_slow():
-    
+
     n = 3000
     rng = np.random.default_rng(0)
     data = np.zeros((n, 9), dtype=np.float32)       # float32, like round3_params.npy
@@ -71,9 +85,10 @@ def test_build_grid_matches_slow():
     levstop_s=build_grid_slow(data=data, y_col=7, x_col=5, value_col=8)
     longshort_f = build_grid(data=data, y_col=2, x_col=3, value_col=8)
     longshort_s = build_grid_slow(data=data, y_col=2, x_col=3, value_col=8)
-     
-    assert same(fast, slow), "Build grid result on  n x bar is different from old version"
-    assert same(levstop_f, levstop_s), "Build grid result on leverage x stop is different from old version"
-    assert same(longshort_f, longshort_s), "Build grid result on long x short is different from old version"
+
+    assert same(fast, slow), "Build grid result on n x bar is different from the old version"
+    assert same(levstop_f, levstop_s), "Build grid result on leverage x stop is different from the old version"
+    assert same(longshort_f, longshort_s), "Build grid result on long x short is different from the old version"
 if __name__ == "__main__":
     test_build_grid_matches_slow()
+    test_get_range()

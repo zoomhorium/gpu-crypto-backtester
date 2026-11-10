@@ -212,73 +212,54 @@ def graph(fig,grid,y_label, x_label):
     return cursor,axes
 
 if __name__ == "__main__":
+    survivors = np.load(ROUND3_PATH)
+    survivors_lev3 = survivors[survivors[:, 7] == 3]
 
+    fig_n_bar = plt.figure(figsize=(24, 14), layout="constrained")
+    fig_lev_stop = plt.figure(figsize=(24, 14), layout="constrained")
+    fig_lev3 = plt.figure(figsize=(24, 14), layout="constrained")
 
+    grid_n_bar = build_grid(data=survivors, y_col=1, x_col=4, value_col=8)
+    grid_lev_stop = build_grid(data=survivors, y_col=7, x_col=5, value_col=8)
+    grid_lev3 = build_grid(data=survivors_lev3, y_col=7, x_col=5, value_col=8)
 
-    fig = plt.figure(figsize=(24, 14), layout="constrained")
-    fig2= plt.figure(figsize=(24, 14), layout="constrained")
-    fig3 =plt.figure(figsize=(24, 14), layout="constrained")
+    # Keep the cursors in variables, or the crosshairs stop working.
+    cursor_n_bar, axes_n_bar = graph(fig=fig_n_bar, grid=grid_n_bar, y_label="n", x_label="bar")
+    cursor_lev_stop, axes_lev_stop = graph(fig=fig_lev_stop, grid=grid_lev_stop, y_label="leverage", x_label="stop")
+    cursor_lev3, axes_lev3 = graph(fig=fig_lev3, grid=grid_lev3, y_label="leverage", x_label="stop")
 
-    a = np.load(ROUND3_PATH)
-    b= a[a[:, 7] == 3]
-    data = np.zeros((3, 9), dtype=np.float32)   # 3 rows, 9 columns, all 0
-    data[:, 7] = [7, 12, 17]                    # Y parameter: one value per row
-    data[:, 4] = [2, 2, 2]                       # X parameter
-    data[:, 8] = [120, 80, 150]                  # the value
-    data[:, 0] = 100
-    grid = build_grid(data=a,y_col=1,x_col=4,value_col=8)
-    cursor,axes=graph( fig=fig,grid=grid,y_label= "n", x_label="bar")
-    grid_l= build_grid(data=a,y_col=7,x_col=5,value_col=8)
-    cursor_l,axes_l=graph( fig=fig2,grid=grid_l,y_label= "leverage", x_label="stop")
-    grid_o=build_grid(data=b,y_col=7,x_col=5,value_col=8)
-    cursor_0,axes_0=graph( fig=fig3,grid=grid_o,y_label= "leverage", x_label="stop")
-    grid_m=build_grid(data=data,y_col=7,x_col=4,value_col=8)
+    fig_n_bar.savefig(BASE_DIR / "bar_n_heatmap.png", dpi=150)
 
+    hover_n_bar = axes_n_bar[0][0].format_coord
+    hover_lev_stop = axes_lev_stop[0][0].format_coord
+    hover_lev3 = axes_lev3[0][0].format_coord
 
+    # n x bar
+    first_bar, last_bar = grid_n_bar.x_values[0], grid_n_bar.x_values[-1]
+    first_n, last_n = grid_n_bar.y_values[0], grid_n_bar.y_values[-1]
+    last_col, last_row = len(grid_n_bar.x_values) - 1, len(grid_n_bar.y_values) - 1
+    x_edge = last_col + 0.5          # where the last column ends
+    y_edge = last_row + 0.5          # where the last row ends
+    assert hover_n_bar(0, 0).split("\n")[0] == f"bar={first_bar}, n={first_n}", "n x bar: first cell"
+    assert hover_n_bar(last_col, last_row).split("\n")[0] == f"bar={last_bar}, n={last_n}", "n x bar: last cell"
+    assert f"COUNT = {grid_n_bar.counts[0, 22].item():0.5g} " in hover_n_bar(22, 0), "n x bar: hover shows the wrong count"
+    assert hover_n_bar(x_edge - 0.01, 0).split("\n")[0] == f"bar={last_bar}, n={first_n}", "n x bar: last column, just inside"
+    assert hover_n_bar(x_edge, 0) == "Too far", "n x bar: last column, on the edge"
+    assert hover_n_bar(-0.5, 0).split("\n")[0] == f"bar={first_bar}, n={first_n}", "n x bar: first column, on the edge"
+    assert hover_n_bar(-0.51, 0) == "Too far", "n x bar: first column, just outside"
+    assert hover_n_bar(0, y_edge - 0.01).split("\n")[0] == f"bar={first_bar}, n={last_n}", "n x bar: last row, just inside"
+    assert hover_n_bar(0, y_edge) == "Too far", "n x bar: last row, on the edge"
+    assert hover_n_bar(0, -0.5).split("\n")[0] == f"bar={first_bar}, n={first_n}", "n x bar: first row, on the edge"
+    assert hover_n_bar(0, -0.51) == "Too far", "n x bar: first row, just outside"
 
+    # leverage x stop
+    last_stop, first_leverage = grid_lev_stop.x_values[-1], grid_lev_stop.y_values[0]
+    stop_edge = len(grid_lev_stop.x_values) - 0.5
+    assert hover_lev_stop(stop_edge - 0.01, 0).split("\n")[0] == f"stop={last_stop}, leverage={first_leverage}", "leverage x stop: last column, just inside"
+    assert hover_lev_stop(stop_edge, 0) == "Too far", "leverage x stop: last column, on the edge"
 
+    # leverage = 3 only
+    assert list(grid_lev3.y_values) == [3], "leverage = 3 only: the y axis must hold just 3"
+    assert hover_lev3(0, 0).split("\n")[0] == f"stop={grid_lev3.x_values[0]}, leverage=3", "leverage = 3 only: first cell"
 
-
-
-    for i, y in enumerate(grid.y_values):
-        row = np.where(grid.counts[i] > 99, grid.medians[i], np.nan)
-        j = np.nanargmin(row)
-        print(grid.x_values[j], grid.counts[i, j], y)
-    print(np.min(a[:,8]),np.min(a[:,0]))
-
-    print(np.nanmin(grid.medians), np.nanmax(grid.medians))
-
-    thin = (grid.counts > 0) & (grid.counts < 100)
-    print(thin.sum())
-    print(np.nanmin(grid.p90))
-    ok = grid.counts > 99
-    print(np.corrcoef(np.log(grid.counts[ok]), np.log(grid.spread[ok]))[0, 1])
-
-    fig.savefig(BASE_DIR / "bar_n_heatmap.png", dpi=150)
-
-    fco=axes_0[0][0].format_coord
-    fcs= axes_l[0][0].format_coord
-    fc = axes[0][0].format_coord
-    x_edge = len(grid.x_values) - 0.5          # where the last column ends
-    y_edge = len(grid.y_values) - 0.5          # where the last row ends
-    first_bar, last_bar = grid.x_values[0], grid.x_values[-1]
-    first_n, last_n = grid.y_values[0], grid.y_values[-1]
-    last_bar_s, first_n_s = grid_l.x_values[-1], grid_l.y_values[0]
-    assert axes[0][0].format_coord(np.max(grid.x_values)-np.min(grid.x_values), np.max(grid.y_values)-np.min(grid.y_values)).split("\n")[0]==f'bar={np.max(grid.x_values)}, n={(np.max(grid.y_values))}',"Wrong max"
-    assert "COUNT = 497 " in fc(22, 0), "Wrong COUNT"
-    assert axes[0][0].format_coord(0, 0).split("\n")[0]==f'bar={np.min(grid.x_values)}, n={(np.min(grid.y_values))}',"Wrong min "
-    assert fc(x_edge - 0.01, 0).split("\n")[0] == f"bar={last_bar}, n={first_n}", "Last column, just inside"
-    assert fc(x_edge, 0) == "Too far", "Last column, on the edge"
-    assert fc(-0.5, 0).split("\n")[0] == f"bar={first_bar}, n={first_n}", "First column, on the edge"
-    assert fc(-0.51, 0) == "Too far", "First column, just outside"
-    assert fc(0, y_edge - 0.01).split("\n")[0] == f"bar={first_bar}, n={last_n}", "Last row, just inside"
-    assert fc(0, y_edge) == "Too far", "Last row, on the edge"
-    assert fc(0, -0.5).split("\n")[0] == f"bar={first_bar}, n={first_n}", "First row, on the edge"
-    assert fc(0, -0.51) == "Too far", "First row, just outside"
-    assert fcs(len(grid_l.x_values) - 0.5 - 0.01, 0).split("\n")[0] == f"stop={last_bar_s}, leverage={first_n_s}", "Last column, just inside"
-    assert fcs(len(grid_l.x_values) - 0.5, 0) == "Too far", "Last column, on the edge"
-    assert grid_m.y_values==range(7,18,5),"Wrong step"
-    assert fco(0, 0).split("\n")[0]==f"stop={grid_o.x_values[0]}, leverage=3","Wrong value"
-    assert list(grid_o.y_values)==[3],"Must be 3"
-    print(np.nanmin(grid.drawdown), np.nanmax(grid.drawdown))
     plt.show()
