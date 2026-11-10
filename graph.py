@@ -76,20 +76,17 @@ class Panel:
     norm: Normalize
     title : str
     mark_thin: bool = False
-
+def get_range(column):
+    uniq=np.unique(column)
+    step=np.gcd.reduce(np.diff(uniq).astype(np.int32))
+    if step==0:
+        step=1
+    new_range=range(int(np.min(uniq)),int(np.max(uniq))+1,step)
+    return new_range
 def build_grid(data, y_col, x_col, value_col,  lower_limit=100, upper_limit=500,balance_col=0):
 
-    y_uniq=np.unique(data[:,y_col])
-    step_y=np.gcd.reduce(np.nan_to_num(np.diff(y_uniq), nan=0).astype(np.int32))
-    if step_y==0:
-        step_y=1
-    y_values=range(int(np.min(y_uniq)),int(np.max(y_uniq))+1,step_y)
-
-    x_uniq=np.unique(data[:, x_col])
-    step_x=np.gcd.reduce(np.nan_to_num(np.diff(x_uniq), nan=0).astype(np.int32))
-    if step_x==0:
-        step_x=1
-    x_values=range(int(np.min(x_uniq)),int(np.max(x_uniq))+1,step_x)
+    y_values=get_range(data[:,y_col])
+    x_values=get_range(data[:,x_col])
     medians = np.full(( len(y_values),len(x_values)), np.nan)
     counts  = np.zeros(( len(y_values),len(x_values)), dtype=int)
     capped_sum  = np.zeros(( len(y_values),len(x_values)), dtype=float)
