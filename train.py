@@ -3,7 +3,7 @@ import cupy as cp
 import numpy as np
 import time
 import os
-from paths import DATA_DIR, BASE_DIR
+from paths import DATA_DIR, BASE_DIR ,ROUND1_PATH,ROUND2_PATH,ROUND3_PATH
 from concurrent.futures import ThreadPoolExecutor
 from data import get_market_data
 from data import count_combos
@@ -168,25 +168,25 @@ def train(ranges,progress_callback=None):
         # ── Load TRAINING data 2021-2023 ─────────────────────────────────
         t0 = time.time()
         train_data=kernel_loop(2018,2020,t0,kernel,1750000,170,combo_generator,None,ranges,progress_callback)
-        save(DATA_DIR / "round1_params.npy", train_data.survivors.survivors,ranges)
+        save(ROUND1_PATH, train_data.survivors.survivors,ranges)
 
 
         
         
-        round1_params = np.load(DATA_DIR / "round1_params.npy")
+        round1_params = np.load(ROUND1_PATH)
             
         
         train_data=kernel_loop(2020,2022,t0,kernel,1750000,170,filtered_combo_generator, round1_params,ranges,progress_callback)
         
-        save(DATA_DIR / "round2_params.npy", train_data.survivors.survivors,ranges)
+        save(ROUND2_PATH, train_data.survivors.survivors,ranges)
         
         
-        round2_params = np.load(DATA_DIR / "round2_params.npy")
+        round2_params = np.load(ROUND2_PATH)
             
        
         train_data=kernel_loop(2022,2024,t0,kernel,1750000,170,filtered_combo_generator, round2_params,ranges,progress_callback)
         
-        save(DATA_DIR / "round3_params.npy", train_data.survivors.survivors,ranges)
+        save(ROUND3_PATH, train_data.survivors.survivors,ranges)
         return train_data
 def stack_survivors(best_params_list, threshold, start, end):
     if not best_params_list:

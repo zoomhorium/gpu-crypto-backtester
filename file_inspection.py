@@ -1,7 +1,7 @@
 import numpy as np
-from paths import DATA_DIR
+from paths import ROUND3_PATH
 
-array   =   np.load(DATA_DIR / "round3_params.npy")
+array   =   np.load(ROUND3_PATH)
 print(array.shape)
 print(array.size)
 print(array.dtype.names)
