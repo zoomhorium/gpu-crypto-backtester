@@ -27,7 +27,7 @@ def get_market_data(start,end):
     return MarketData(prices_close=np.array(pricesClose, dtype=np.float32),highs=np.array(highs, dtype=np.float32),lows=np.array(lows, dtype=np.float32),volume=np.array(volume, dtype=np.float32),open_times=np.array(open_time, dtype=np.int64 ),T=len(pricesClose))
 def count_combos(ranges):
     total = 0
-    
+
     for long_window in ranges.long_window:
         for short_window in range(2, long_window// 2 + 1):
             total += 1
