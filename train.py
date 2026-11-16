@@ -24,43 +24,43 @@ def prepare_data(start,end,t0,ranges):
     print(f"Gaps: {gaps}")
     data_gpu,adx=prepare_gpu_data(ranges.n,data_cpu.prices_close,data_cpu.highs,  data_cpu.lows)
     signals=get_signals(data_gpu.prices,ranges.long_window)
-    
+
 
     return data_cpu,data_gpu,signals,adx
 def kernel_loop(start,end,t0,kernel,chunk_size,threshold,variables_fider,params,ranges,progress_callback=None):
-        
+
 
         startof = time.time()
-        
+
         cpu_data, gpu_data, signals, adx=prepare_data(start,end,t0,ranges)
-        
+
         # # ── Kernel ────────────────────────────────────────────────────────
         num_combos = len(params) if params is not None else count_combos(ranges)
         print(f"Total combinations: {num_combos}")
         if progress_callback:
                     progress_callback(0)
-        
 
-        
+
+        lower_limit=ranges.n.start
         print("Kernel compiled OK")
-        best_params  = [] 
+        best_params  = []
         best_params_list = []
         best_balance = 0.0
         best_score = 0.0
-        
+
         chunk_start  = 0
         chunk_num    = 0
         gen=variables_fider(signals.map_of_signals,params,ranges)
 
         with ThreadPoolExecutor(max_workers=1) as executor:
-            current_chunk_data = take_chunk(gen, chunk_size)
+            current_chunk_data = take_chunk(gen, chunk_size,lower_limit)
 
             while True:
                 chunk_num += 1
                 t_chunk = time.time()
 
                 n_indices_gpu, stop_divs_gpu, take_divs_gpu, leverages_gpu, signal_idx_gpu, bars_gpu = current_chunk_data
-                future = executor.submit(take_chunk, gen, chunk_size)
+                future = executor.submit(take_chunk, gen, chunk_size,lower_limit)
 
                 n_chunk = len(n_indices_gpu)
                 out_balance     = cp.empty(n_chunk, dtype=cp.float32)
@@ -77,7 +77,7 @@ def kernel_loop(start,end,t0,kernel,chunk_size,threshold,variables_fider,params,
                     cp.int32(n_chunk), cp.int32(gpu_data.T),
                     bars_gpu, signal_idx_gpu, leverages_gpu, out_balance,out_score
                 ))
-                
+
                 best_val = float(cp.max(out_balance))
                 best_score_value = float(cp.max(out_score))
                 if np.isfinite(best_score_value) and best_score_value > best_score:
@@ -94,13 +94,13 @@ def kernel_loop(start,end,t0,kernel,chunk_size,threshold,variables_fider,params,
                 stop_vals = cp.asnumpy(stop_divs_gpu[bidx])
                 take_vals = cp.asnumpy(take_divs_gpu[bidx])
                 lev_vals  = cp.asnumpy(leverages_gpu[bidx])
-                        
+
                 if len(bidx) > 0:
                     long_short = np.array([signals.reverse_map[int(s)] for s in sig_vals], dtype=np.float32)
                     chunk_data = np.column_stack([
                         values,
-                        
-                        (n_vals + 2).astype(np.float32),
+
+                        (n_vals + lower_limit).astype(np.float32),
                         long_short[:, 0],
                         long_short[:, 1],
                         bar_vals.astype(np.float32),
@@ -121,9 +121,9 @@ def kernel_loop(start,end,t0,kernel,chunk_size,threshold,variables_fider,params,
                 current_chunk_data = future.result()
                 if current_chunk_data is None:
                     break
-        
+
         best_params = stack_survivors(best_params_list,threshold,start,end)
-        
+
         best_param= max(best_params, key=lambda x: x[8])
         print(f"Survivors: {len(best_params)} — Memory: {best_params.nbytes/1e9:.1f}GB")
         train_data=TrainingOutput(
@@ -144,7 +144,7 @@ def kernel_loop(start,end,t0,kernel,chunk_size,threshold,variables_fider,params,
             ),
             indicators=adx
             ,
-            signals=signals) 
+            signals=signals)
         print("\n=== BEST RESULT (TRAINING 2021-2023) ===")
         print(f"Balance: {train_data.best_strategy.best_balance:.2f}")
         print(f"Long Window: {train_data.best_strategy.best_long}, Short Window: {train_data.best_strategy.best_short}")
@@ -154,7 +154,7 @@ def kernel_loop(start,end,t0,kernel,chunk_size,threshold,variables_fider,params,
         print (sum(len(c) for c in best_params_list))
         return train_data
 def train(ranges,progress_callback=None):
-        
+
         DATA_DIR.mkdir(parents=True, exist_ok=True)
         cuda_path = r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v13.2\bin"
         if os.path.exists(cuda_path):
@@ -171,21 +171,21 @@ def train(ranges,progress_callback=None):
         save(ROUND1_PATH, train_data.survivors.survivors,ranges)
 
 
-        
-        
+
+
         round1_params = np.load(ROUND1_PATH)
-            
-        
+
+
         train_data=kernel_loop(2020,2022,t0,kernel,1750000,170,filtered_combo_generator, round1_params,ranges,progress_callback)
-        
+
         save(ROUND2_PATH, train_data.survivors.survivors,ranges)
-        
-        
+
+
         round2_params = np.load(ROUND2_PATH)
-            
-       
+
+
         train_data=kernel_loop(2022,2024,t0,kernel,1750000,170,filtered_combo_generator, round2_params,ranges,progress_callback)
-        
+
         save(ROUND3_PATH, train_data.survivors.survivors,ranges)
         return train_data
 def stack_survivors(best_params_list, threshold, start, end):

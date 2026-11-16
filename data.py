@@ -48,7 +48,7 @@ def filtered_combo_generator(mapOfSignals,best_params,_):
         _, n, long_w, short_w, bar, stop, take, lev ,_= params
         sig_idx = mapOfSignals[int(long_w)][int(short_w)]
         yield (int(n), sig_idx, int(bar), int(stop), int(take), int(lev))
-def take_chunk(gen, size):
+def take_chunk(gen, size,lower_limit):
     rows = []
     try:
         for i in range(size):
@@ -58,7 +58,7 @@ def take_chunk(gen, size):
     if not rows:
         return None
     data = np.array(rows, dtype=np.int32)
-    n_indices_gpu  = cp.asarray(data[:, 0] - 2, dtype=cp.int32)
+    n_indices_gpu  = cp.asarray(data[:, 0] - lower_limit, dtype=cp.int32)
     bars_gpu       = cp.asarray(data[:, 2],      dtype=cp.int8)
     stop_divs_gpu  = cp.asarray(data[:, 3],      dtype=cp.int32)
     take_divs_gpu  = cp.asarray(data[:, 4],      dtype=cp.int32)
